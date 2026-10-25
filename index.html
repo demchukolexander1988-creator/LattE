@@ -294,6 +294,7 @@ function syncOn(){return !!(localStorage.getItem("latte-tg-url")&&localStorage.g
 function markDirty(id){if(!syncOn())return;var D=lsj("latte-dirty","{}");D[id]=1;try{localStorage.setItem("latte-dirty",JSON.stringify(D))}catch(e){}clearTimeout(markDirty.t);markDirty.t=setTimeout(function(){tgSync(1,1)},3000)}
 async function tgSync(manual,quiet){
 var u=(localStorage.getItem("latte-tg-url")||"").trim().replace(/\/+$/,""),t=localStorage.getItem("latte-tg-token"),loud=manual&&!quiet;
+if(t&&/[^\x00-\xFF]/.test(t)){if(manual)showErr("Пароль містить не латинські символи (наприклад, кириличні літери, схожі на англійські). Перемкніть клавіатуру на англійську (Win+Пробіл) і введіть пароль ще раз.");return}
 if(!u||!t){if(loud)toast("Спершу вкажіть адресу сервісу та пароль у Налаштуваннях");return}
 if(TGB)return;if(!manual&&Date.now()-TGL<30000)return;TGB=1;TGL=Date.now();
 var H={"Authorization":"Bearer "+t,"Content-Type":"application/json"},again=false;
@@ -340,6 +341,7 @@ function qrStatus(){var e=$("qrst");if(!e)return;var l=localStorage.getItem(QL);
 async function qrSync(manual,full){
 if(busy)return;
 var u=(localStorage.getItem(QU)||DEFURL).trim().replace(/\/+$/,""),t=(localStorage.getItem(QT)||"").trim();
+if(/[^\x00-\xFF]/.test(t)){if(manual)showErr("Токен QR-оплат містить не латинські символи. Перемкніть клавіатуру на англійську (Win+Пробіл) і введіть токен ще раз.");return}
 if(!t){if(manual)toast("Спершу введіть токен QR-оплат у Налаштуваннях");return}
 if(!manual&&Date.now()-(+localStorage.getItem(QTS)||0)<300000)return;
 busy=1;try{localStorage.setItem(QTS,String(Date.now()))}catch(e){}
@@ -362,6 +364,16 @@ var o={t:"i",d:x.d,a:a,c:p[1],v:"QR · "+x.count+" "+pl(x.count),m:card,g:"qr",n
 if(!old||old.a!==o.a||old.q!==o.q){DOCS[id]=o;ids.push(id);if(col)persist(id,o)}
 }else if(old){delete DOCS[id];ids.push(id);if(col)persist(id,null)}
 })});
+(j.close||[]).forEach(function(x){
+var cashM=(CFG.pm.filter(function(y){return/гот/i.test(y)})[0]||CFG.pm[0]);
+[["c",CASH,x.cash,cashM],["k",TERM,x.term,card]].forEach(function(p){
+var id="rev-"+x.d+"-"+p[0],a=Math.round(p[2]||0)/100,old=DOCS[id];
+if(old&&!old.sv)return;
+if(a>0){
+var o={t:"i",d:x.d,a:a,c:p[1],v:"Каса дня",m:p[3],g:"виручка",n:"З сервера (каса дня)",s:0,sv:1,ts:(old&&old.ts)||Date.now()};
+if(!old||old.a!==o.a){DOCS[id]=o;ids.push(id);if(col)persist(id,o)}
+}else if(old){delete DOCS[id];ids.push(id);if(col)persist(id,null)}
+})});
 if(ids.length&&!col){
 try{localStorage.setItem("latte-fin",JSON.stringify(DOCS))}catch(e){}
 markIds(ids);
@@ -372,7 +384,7 @@ if(manual||ids.length)toast(ids.length?"QR-оплати оновлено, зап
 }catch(e){if(manual){$("toast").hidden=true;showErr("QR-оплати: "+((e&&e.message)||"помилка")+(e&&e.name==="TypeError"?"\nПеревірте адресу сервера та інтернет.":""))}}
 busy=0}
 var _rs=renderSet;renderSet=function(){_rs();var s=$("set");if(!s)return;
-s.insertAdjacentHTML("beforeend",'<h2>QR-оплати (сервер замовлень)</h2><p class="sub">Щодня підтягує суми чеків закритих замовлень і чайових у «Доходи» (категорії «QR-оплати (розрахунок)» і «QR-оплати (чайові)»). Потрібні адреса сервера та токен (STATS_TOKEN).</p><div class="row"><input id="qru" size="34" placeholder="https://….workers.dev" value="'+esc(localStorage.getItem(QU)||DEFURL)+'"><input id="qrt" type="password" autocomplete="off" placeholder="Токен (STATS_TOKEN)" value="'+esc(localStorage.getItem(QT)||"")+'"></div><div class="row"><button class="b" id="qrs">Зберегти й підтягнути</button><button class="b g" id="qrall">Підтягнути весь період</button></div><p class="sub" id="qrst"></p>');qrStatus()};
+s.insertAdjacentHTML("beforeend",'<h2>QR-оплати (сервер замовлень)</h2><p class="sub">Щодня підтягує суми чеків закритих замовлень, чайових і каси дня (готівка та термінал із «Закрити день») у «Доходи» (категорії «QR-оплати (розрахунок)» і «QR-оплати (чайові)»). Потрібні адреса сервера та токен (STATS_TOKEN).</p><div class="row"><input id="qru" size="34" placeholder="https://….workers.dev" value="'+esc(localStorage.getItem(QU)||DEFURL)+'"><input id="qrt" type="password" autocomplete="off" placeholder="Токен (STATS_TOKEN)" value="'+esc(localStorage.getItem(QT)||"")+'"></div><div class="row"><button class="b" id="qrs">Зберегти й підтягнути</button><button class="b g" id="qrall">Підтягнути весь період</button></div><p class="sub" id="qrst"></p>');qrStatus()};
 var _ro=renderOv;renderOv=function(){_ro();var r=$("ov")&&$("ov").querySelector(".row");if(r)r.insertAdjacentHTML("beforeend",'<button class="b g" data-rev>+ Виручка за день</button>'+(qrOn()?'<button class="b g" id="qrn">🔄 QR-оплати</button>':""))};
 var _rst=renderStats;renderStats=function(){_rst();var el=$("st");if(!el)return;
 var ks=keys(G,Y),L=all().filter(function(x){if(x.g!=="qr")return false;var k=bk(x.d,G);return SEL?k===SEL:ks.indexOf(k)>-1});
