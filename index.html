@@ -59,7 +59,7 @@ textarea{width:100%;min-height:110px}
 <div class="row"><button class="b g" id="inst" hidden>⬇ Встановити на робочий стіл / екран</button></div>
 <p class="sub" id="ios" hidden>iPhone/iPad: натисніть «Поділитися» → «На початковий екран».</p>
 <nav id="nav"></nav>
-<section id="ov"></section><section id="e" hidden></section><section id="i" hidden></section><section id="st" hidden></section><section id="set" hidden></section>
+<section id="ov"></section><section id="e" hidden></section><section id="i" hidden></section><section id="st" hidden></section><section id="pay" hidden></section><section id="set" hidden></section>
 </div>
 <input class="vh" type="file" id="scan" accept="image/*" multiple>
 <dialog id="dlg"><form method="dialog" id="fm" onsubmit="return false">
@@ -181,8 +181,8 @@ function renderSet(){$("set").innerHTML='<div class="c"><label><input type="chec
 '<h2>Розпізнавання чеків і файлів (Claude API)</h2><p class="sub">Потрібен ваш ключ Claude API (оплата за використання). Ключ зберігається лише в цьому браузері.</p><div class="row"><input id="akey" type="password" autocomplete="off" placeholder="Ключ API (sk-ant-…)" value="'+esc(localStorage.getItem("latte-key")||"")+'"><input id="amod" size="18" aria-label="Модель" value="'+esc(localStorage.getItem("latte-model")||"claude-sonnet-5-5")+'"><button class="b" id="skey">Зберегти</button></div>'+
 '<h2>Дані</h2><div class="row"><button class="b g" id="xcsv">Експорт CSV</button><button class="b g" id="xjson">Резервна копія JSON</button><button class="b g" id="imp">Імпорт JSON</button><button class="b g" id="dg">Перевірити розпізнавання</button><button class="b g e" id="rst">Видалити всі операції</button><input class="vh" type="file" id="impf" accept=".json"></div>'}
 function renderAll(){renderOv();fillCat("e");fillCat("i");renderList("e");renderList("i");renderStats();if(tab!=="set"||!$("sce"))renderSet()}
-function showTab(t){tab=t;["ov","e","i","st","set"].forEach(function(x){$(x).hidden=x!==t});Array.prototype.forEach.call($("nav").children,function(b){b.setAttribute("aria-selected",b.dataset.t===t)})}
-[["ov","Огляд"],["e","Витрати"],["i","Доходи"],["st","Статистика"],["set","Налаштування"]].forEach(function(t){var b=document.createElement("button");b.textContent=t[1];b.dataset.t=t[0];b.onclick=function(){showTab(t[0])};$("nav").appendChild(b)});
+function showTab(t){tab=t;["ov","e","i","st","pay","set"].forEach(function(x){$(x).hidden=x!==t});Array.prototype.forEach.call($("nav").children,function(b){b.setAttribute("aria-selected",b.dataset.t===t)})}
+[["ov","Огляд"],["e","Витрати"],["i","Доходи"],["st","Статистика"],["pay","Зарплата"],["set","Налаштування"]].forEach(function(t){var b=document.createElement("button");b.textContent=t[1];b.dataset.t=t[0];b.onclick=function(){showTab(t[0])};$("nav").appendChild(b)});
 function sel(id,list,v){var h=list.map(function(x){return"<option>"+esc(x)+"</option>"}).join("");if(v&&list.indexOf(v)<0)h+="<option>"+esc(v)+"</option>";$(id).innerHTML=h;if(v)$(id).value=v}
 function setT(t){FT=t;Array.prototype.forEach.call($("ft").children,function(b){b.setAttribute("aria-pressed",b.dataset.t===t)});var v=$("fc").value;sel("fc",t==="e"?CFG.ce:CFG.ci,v)}
 function openTx(id,t,pre){ED=id;var o=id?DOCS[id]:(pre||{});FT=o.t||t||"e";$("fd").value=o.d||today();$("fa").value=o.a?String(o.a).replace(".",","):"";$("fv").value=o.v||"";$("fg").value=o.g||"";$("fn").value=o.n||"";sel("fp",CFG.pm,o.m);$("fc").innerHTML="";sel("fc",FT==="e"?CFG.ce:CFG.ci,o.c);setT(FT);$("fdl").hidden=!id;$("dlg").showModal()}
@@ -434,6 +434,69 @@ $("dlgr").close();renderAll();toast(ch.some(Boolean)?"Виручку за "+d.sp
 document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("[data-rev]")){$("rd").value=today();revFill();$("dlgr").showModal()}});
 var ir=$("i")&&$("i").querySelector(".row");if(ir)ir.insertAdjacentHTML("beforeend",'<button class="b g" data-rev>+ Виручка за день</button>');
 renderAll()})();
+</script>
+<script>
+/* Зарплата й табель: підтягуються з сервера замовлень (години з Telegram-табеля, ставка, премія з банкетів, чайові) */
+(function(){
+var QU="latte-qr-url",QT="latte-qr-token",PTS="latte-pay-ts",PC="latte-pay-cache",DEFURL="https://latte-pay.demchukolexander1988.workers.dev",WC="Зарплата",TC="Чайові персоналу",busy=0,C={},ym=new Date().toLocaleDateString("sv").slice(0,7);
+try{C=JSON.parse(localStorage.getItem(PC)||"{}")}catch(e){C={}}
+function k2(k){return (Math.round(k||0)/100).toLocaleString("uk-UA",{minimumFractionDigits:2,maximumFractionDigits:2})+" "+CFG.cur}
+function hm(m){m=Math.round(m||0);return Math.floor(m/60)+":"+String(m%60).padStart(2,"0")}
+function sn(n){var a=String(n).trim().split(/\s+/);return a[a.length-1].replace(/^-+/,"")}
+function mlab(y){var a=y.split("-");return["січень","лютий","березень","квітень","травень","червень","липень","серпень","вересень","жовтень","листопад","грудень"][+a[1]-1]+" "+a[0]}
+function shift(y,d){var a=y.split("-"),x=new Date(+a[0],+a[1]-1+d,1);return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")}
+function markIds(ids){if(typeof syncOn==="function"&&syncOn()){var D={};try{D=JSON.parse(localStorage.getItem("latte-dirty")||"{}")}catch(e){}ids.forEach(function(id){D[id]=1});try{localStorage.setItem("latte-dirty",JSON.stringify(D))}catch(e){}setTimeout(function(){tgSync(1,1)},1500)}}
+function ensureCat(){if(CFG.ce.indexOf(TC)<0){var ix=CFG.ce.indexOf("Інше");if(ix<0)CFG.ce.push(TC);else CFG.ce.splice(ix,0,TC);DOCS.cfg=CFG;persist("cfg",CFG)}}
+function fetchYm(y){var u=(localStorage.getItem(QU)||DEFURL).trim().replace(/\/+$/,""),t=(localStorage.getItem(QT)||"").trim();
+ return fetch(u+"/api/payroll?ym="+y,{headers:{"Authorization":"Bearer "+t}}).then(function(r){return r.json().catch(function(){return{}}).then(function(j){
+  if(r.status===401)throw new Error("Невірний токен (STATS_TOKEN)");
+  if(!r.ok)throw new Error(j.error||("Помилка сервера ("+r.status+")"));
+  return j})})}
+function apply(j){var ids=[],cash=(CFG.pm.filter(function(x){return/гот/i.test(x)})[0]||CFG.pm[0]);
+ (j.byDay||[]).forEach(function(x){
+  [["w",WC,(x.base||0)+(x.bonus||0),"Табель: години × ставка"+(x.bonus?" + премія з банкету":"")],["t",TC,x.qt||0,"Чайові (QR), розподілені між працівниками"]].forEach(function(p){
+   var id="pay-"+x.d+"-"+p[0],a=Math.round(p[2])/100,old=DOCS[id];
+   if(old&&!old.sv)return;
+   if(a>0){var o={t:"e",d:x.d,a:a,c:p[1],v:"Табель · "+hm(x.min)+" год",m:cash,g:"зарплата",n:p[3],s:0,sv:1,ts:(old&&old.ts)||Date.now()};
+    if(!old||old.a!==o.a||old.v!==o.v){DOCS[id]=o;ids.push(id);if(col)persist(id,o)}}
+   else if(old){delete DOCS[id];ids.push(id);if(col)persist(id,null)}})});
+ return ids}
+async function sync(manual,full){
+ if(busy)return;var t=(localStorage.getItem(QT)||"").trim();
+ if(!t){if(manual)toast("Спершу введіть токен у Налаштуваннях (розділ «QR-оплати»)");return}
+ if(/[^\x00-\xFF]/.test(t)){if(manual)showErr("Токен містить не латинські символи. Перемкніть клавіатуру на англійську.");return}
+ if(!manual&&Date.now()-(+localStorage.getItem(PTS)||0)<300000)return;
+ busy=1;try{localStorage.setItem(PTS,String(Date.now()))}catch(e){}
+ if(manual)toast("Підтягую табель і зарплату…",0,1);
+ try{var cur=new Date().toLocaleDateString("sv").slice(0,7),ms=[cur,shift(cur,-1)];
+  if(full){ms=[];for(var i=0;i<13;i++)ms.push(shift(cur,-i))}
+  ensureCat();var ids=[];
+  for(var q=0;q<ms.length;q++){var j=await fetchYm(ms[q]);C[ms[q]]=j;ids=ids.concat(apply(j))}
+  try{localStorage.setItem(PC,JSON.stringify(C))}catch(e){}
+  if(ids.length&&!col){try{localStorage.setItem("latte-fin",JSON.stringify(DOCS))}catch(e){}markIds(ids)}
+  renderAll();if(manual||ids.length)toast(ids.length?"Зарплату оновлено, записів у витратах: "+ids.length:"Зарплата актуальна")
+ }catch(e){if(manual){$("toast").hidden=true;showErr("Зарплата: "+((e&&e.message)||"помилка")+(e&&e.name==="TypeError"?"\nПеревірте адресу сервера й інтернет.":""))}}
+ busy=0}
+function render(){var el=$("pay");if(!el)return;var j=C[ym],h='<div class="row" style="align-items:center"><button class="b g" data-pm="-1">◀</button><b style="min-width:9em;text-align:center">'+esc(mlab(ym))+'</b><button class="b g" data-pm="1">▶</button><button class="b" id="payr" style="margin-left:auto">🔄 Оновити</button><button class="b g" id="payall">За рік</button></div>';
+ if(!j){h+='<p class="sub">Даних за цей місяць ще немає. Натисніть «Оновити» (потрібні адреса сервера й токен у Налаштуваннях, розділ «QR-оплати»).</p>';el.innerHTML=h;return}
+ var t=j.tot||{};
+ h+='<div class="cards"><div class="c"><small>Годин</small><b>'+hm(t.min)+'</b></div><div class="c"><small>Зарплата (години + премія)</small><b class="e">'+k2((t.base||0)+(t.bonus||0))+'</b></div><div class="c"><small>Чайові</small><b>'+k2(t.tips)+'</b></div><div class="c"><small>Разом до виплати</small><b>'+k2(t.total)+'</b></div></div>';
+ h+='<p class="sub">Ставка '+k2(j.rate)+' за годину; премія з банкетів '+j.pct+'%. Дані з Telegram-табеля.</p>';
+ h+='<div class="tw"><table><thead><tr><th>Працівник</th><th>Годин</th><th>За години</th><th>Банкети</th><th>Чайові</th><th>Разом</th></tr></thead><tbody>'+(j.rows||[]).map(function(p){return'<tr><td>'+esc(p.n)+'</td><td>'+hm(p.min)+'</td><td>'+k2(p.base)+'</td><td>'+k2(p.bonus)+'</td><td>'+k2(p.tips)+'</td><td><b>'+k2(p.total)+'</b></td></tr>'}).join("")+'</tbody></table></div>';
+ if((j.warn||[]).length)h+='<h2>Увага</h2><ul>'+j.warn.map(function(w){return'<li>'+esc(w)+'</li>'}).join("")+'</ul>';
+ var days={};(j.days||[]).forEach(function(x){(days[x.d]||(days[x.d]=[])).push(x)});var ds=Object.keys(days).sort().reverse();
+ if(ds.length){h+='<h2>Табель по днях</h2><div class="tw"><table><thead><tr><th>Дата</th><th>Хто й скільки</th></tr></thead><tbody>'+ds.map(function(d){return'<tr><td>'+d.split("-").reverse().slice(0,2).join(".")+'</td><td>'+days[d].map(function(x){return esc(sn(x.n))+" "+hm(x.m)+(x.b?" (банкет "+hm(x.b)+")":"")}).join(", ")+'</td></tr>'}).join("")+'</tbody></table></div>'}
+ h+='<p class="sub">У «Витратах» щодня автоматично з’являються записи «Зарплата» (години × ставка + премія) і «Чайові персоналу» (QR-чайові, віддані працівникам). Чайові готівкою у витрати не входять.</p>';
+ el.innerHTML=h}
+var _ra=renderAll;renderAll=function(){_ra();render()};
+document.addEventListener("click",function(e){var t=e.target;if(!t||!t.closest)return;var b=t.closest("[data-pm]");
+ if(b){ym=shift(ym,+b.dataset.pm);if(!C[ym])sync(0,0);render();return}
+ if(t.id==="payr"){fetchYm(ym).then(function(j){C[ym]=j;ensureCat();var ids=apply(j);try{localStorage.setItem(PC,JSON.stringify(C))}catch(e){}if(ids.length&&!col){try{localStorage.setItem("latte-fin",JSON.stringify(DOCS))}catch(e){}markIds(ids)}renderAll();toast("Оновлено")}).catch(function(er){showErr("Зарплата: "+((er&&er.message)||"помилка"))})}
+ else if(t.id==="payall"){sync(1,1)}});
+setTimeout(function(){sync(0)},6500);
+document.addEventListener("visibilitychange",function(){if(!document.hidden)sync(0)});
+setInterval(function(){if(!document.hidden)sync(0)},600000);
+render()})();
 </script>
 </body>
 </html>
