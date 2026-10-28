@@ -623,7 +623,7 @@ function vIts(){
  h+='<p class="sub">'+E(pubMsg||"Каталог публікується для сканера автоматично після змін.")+'</p>';
  if(its.length)h+='<div class="tw"><table><thead><tr><th>Товар</th><th>Од.</th><th>Штрихкоди</th><th>Мінімум</th><th>Ціна за од.</th></tr></thead><tbody>'+its.map(function(i){return '<tr data-iid="'+E(i.id)+'"><td>'+E(i.n)+'</td><td>'+E(i.u)+'</td><td>'+((i.bc||[]).length?E((i.bc||[]).join(", ")):"—")+'</td><td>'+(i.min>0?fm(i.min):"—")+'</td><td>'+(i.p>0?mny(i.p):"—")+'</td></tr>'}).join("")+'</tbody></table></div>';
  else h+='<div class="note">Додайте товари по одному або вставте список нижче.</div>';
- h+='<h2>Імпорт списку</h2><p class="sub">Один товар у рядку: <code>Назва;одиниця;штрихкод;мінімум;ціна</code>. Одиниця: шт, кг, г, л, мл або пак. Усе, крім назви, можна пропустити. Існуючі назви пропускаються.</p><textarea id="skimp" placeholder="Кава зерно Lavazza 1 кг;кг;8000070018464;2;540&#10;Молоко 2,5% 1 л;л;4820001234567;10;42"></textarea><div class="row"><button class="b g" id="skimpgo">Додати з тексту</button></div>';
+ h+='<h2>Імпорт каталогу з Checkbox</h2><p class="sub">Завантажте експорт каталогу товарів (XLSX або CSV). Колонки «Назва», «Штрихкод», «Одиниця», «Ціна» розпізнаються за заголовками. «Як товари»: позиції стають товарами складу зі штрихкодами (ціна продажу не підставляється як собівартість). «Як страви»: створюються заготовки техкарт із ціною продажу, інгредієнти додасте потім.</p><div class="row"><label class="b g" style="cursor:pointer">Каталог → товари<input id="catfi" type="file" accept=".csv,.tsv,.xlsx,.xls" hidden></label><label class="b g" style="cursor:pointer">Каталог → страви<input id="catfd" type="file" accept=".csv,.tsv,.xlsx,.xls" hidden></label></div><h2>Імпорт списку</h2><p class="sub">Один товар у рядку: <code>Назва;одиниця;штрихкод;мінімум;ціна</code>. Одиниця: шт, кг, г, л, мл або пак. Усе, крім назви, можна пропустити. Існуючі назви пропускаються.</p><textarea id="skimp" placeholder="Кава зерно Lavazza 1 кг;кг;8000070018464;2;540&#10;Молоко 2,5% 1 л;л;4820001234567;10;42"></textarea><div class="row"><button class="b g" id="skimpgo">Додати з тексту</button></div>';
  return h}
 function vNew(){
  var ps=pend();
@@ -713,6 +713,34 @@ function vSa(){
  if(dk.length)h+='<h2>Імпортовані дні</h2><div class="tw"><table><tbody>'+dk.map(function(d){return '<tr><td>'+dm(d)+'</td><td>позицій списано: '+days[d]+'</td><td><button class="b g" data-sacancel="'+d+'">Скасувати імпорт</button></td></tr>'}).join("")+'</tbody></table></div>';
  return h}
 
+
+function catParse(rows){
+ var hi=-1,C={};
+ for(var r=0;r<Math.min(rows.length,15)&&hi<0;r++){var c=rows[r].map(function(x){return String(x==null?"":x).toLowerCase()}),m={};
+  c.forEach(function(x,k){if(m.n==null&&/назва|найменуванн|товар|name/.test(x)&&!/код/.test(x))m.n=k;else if(m.b==null&&/штрих|barcode|ean/.test(x))m.b=k;else if(m.u==null&&/одиниц|^од\b|^од\.|unit/.test(x))m.u=k;else if(m.p==null&&/ціна|price|вартість/.test(x))m.p=k});
+  if(m.n!=null){hi=r;C=m}}
+ if(hi<0){C={n:0};hi=-1}
+ var out=[];
+ rows.forEach(function(row,r){if(r<=hi)return;var nm=String(row[C.n]==null?"":row[C.n]).replace(/\s+/g," ").trim().slice(0,60);if(!nm||/^(разом|підсумок|всього)\b/i.test(nm))return;
+  var u=C.u!=null?String(row[C.u]||"").toLowerCase():"",un=/^кг|кілограм/.test(u)?"кг":/^г\b|грам/.test(u)?"г":/^мл/.test(u)?"мл":/^л\b|літр/.test(u)?"л":/пак|упак/.test(u)?"пак":"шт";
+  var bc=C.b!=null?bcs(String(row[C.b]||"")).slice(0,3):[],p=C.p!=null?num(row[C.p]):NaN;
+  out.push({n:nm,u:un,bc:bc,p:p>0?p:0})});
+ return out}
+async function catImport(fl,asDish){
+ try{var n=fl.name.toLowerCase(),rows;
+  if(/\.(xlsx|xls)$/.test(n)){toast("Читаю таблицю…",0,1);if(!window.XLSX)await lib("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");var wb=XLSX.read(await fl.arrayBuffer(),{type:"array"});rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:""})}
+  else rows=csvRows(await fl.text());
+  var L=catParse(rows);if(!L.length){showErr("У файлі не знайдено позицій. Потрібна колонка «Назва».");return}
+  if(!await ask("Знайдено позицій: "+L.length+". Додати "+(asDish?"як страви (техкарти-заготовки)":"як товари складу")+"? Існуючі назви пропускаються."))return;
+  var ids=[],add=0,skip=0,have={};
+  if(asDish){tcs().forEach(function(t){have[nrm(t.n)]=1});
+   L.forEach(function(x){if(have[nrm(x.n)]){skip++;return}have[nrm(x.n)]=1;var id="sk:t:"+nid()+add;DOCS[id]={n:x.n,al:"",pr:x.p,ing:[],ts:Date.now()};ids.push(id);add++})}
+  else{items().forEach(function(i){have[nrm(i.n)]=1});
+   L.forEach(function(x){if(have[nrm(x.n)]){skip++;return}have[nrm(x.n)]=1;var b=x.bc.filter(function(c){return !bcOwner(c,"")});
+    var id="sk:i:"+nid()+add;DOCS[id]={n:x.n,u:x.u,bc:b,min:0,p:0,ts:Date.now()};ids.push(id);add++})}
+  if(!ids.length){toast("Усі позиції вже є ("+skip+")");return}
+  saveMany(ids);if(!asDish)pubLater();view=asDish?"tc":"its";render();toast("Додано: "+add+(skip?", пропущено дублів: "+skip:""))
+ }catch(e){showErr("Каталог: "+((e&&e.message)||"помилка"))}}
 function sheetRows(rows){
  var hi=-1,ni=-1,qi=-1;
  for(var r=0;r<Math.min(rows.length,15)&&hi<0;r++){var c=rows[r].map(function(x){return String(x==null?"":x).toLowerCase()}),a=-1,b=-1;
@@ -926,7 +954,7 @@ document.addEventListener("click",async function(ev){
 });
 document.addEventListener("input",function(e){if(e.target&&e.target.id==="skq")render()});
 document.addEventListener("change",function(e){var t=e.target;if(!t)return;
- if(t.id==="skm"||t.id==="skim")render();else if(t.id==="prold")renderPr();else if(t.id==="skauto"){try{localStorage.setItem("latte-sk-auto",t.checked?"1":"0")}catch(x){}}else if(t.id==="sasel"){}else if(t.dataset&&t.dataset.sasel!==undefined){}else if(t.id==="safile"&&t.files[0]){var fl=t.files[0];t.value="";readSales(fl)}else if(t.id==="prfly"&&t.files.length){flyer(Array.prototype.slice.call(t.files));t.value=""}});
+ if(t.id==="skm"||t.id==="skim")render();else if(t.id==="prold")renderPr();else if(t.id==="skauto"){try{localStorage.setItem("latte-sk-auto",t.checked?"1":"0")}catch(x){}}else if(t.id==="sasel"){}else if(t.dataset&&t.dataset.sasel!==undefined){}else if((t.id==="catfi"||t.id==="catfd")&&t.files[0]){var cf=t.files[0],cd=t.id==="catfd";t.value="";catImport(cf,cd)}else if(t.id==="safile"&&t.files[0]){var fl=t.files[0];t.value="";readSales(fl)}else if(t.id==="prfly"&&t.files.length){flyer(Array.prototype.slice.call(t.files));t.value=""}});
 document.addEventListener("keydown",function(e){if(e.key==="Enter"&&e.target&&(e.target.id==="prp"||e.target.id==="prq")){e.preventDefault();prAdd()}});
 var _ra=renderAll;renderAll=function(){_ra();render()};
 var _st=showTab;showTab=function(t){_st(t);if(t==="sk"){render();pull(0);info()}else if(t==="pr")renderPr()};
