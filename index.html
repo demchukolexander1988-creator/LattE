@@ -701,7 +701,7 @@ function parseSales(t){
 function matchSales(rows){return rows.map(function(r){var t=tcFind(r.nm),it=t?null:items().filter(function(i){return nrm(i.n)===nrm(r.nm)})[0]||null;return{nm:r.nm,q:r.q,tc:t?t.id:"",it:it?it.id:""}})}
 function vSa(){
  var h='<h2 style="margin-top:0">Імпорт продажів з каси</h2><p class="sub">Вставте звіт про продажі за день: рядок «Назва;кількість» (підходить копіювання колонок з Excel). Можна завантажити файл CSV чи TXT. Програма знайде техкарти за назвою й спише інгредієнти. Повторний імпорт за ту саму дату замінює попередній.</p>';
- h+='<div class="row"><label>Дата продажів <input id="sadate" type="date" value="'+E(SALE?SALE.date:today())+'"></label><label class="b g" style="cursor:pointer">Файл CSV/TXT<input id="safile" type="file" accept=".csv,.txt,.tsv,text/plain,text/csv" hidden></label></div>';
+ h+='<div class="row"><label>Дата продажів <input id="sadate" type="date" value="'+E(SALE?SALE.date:today())+'"></label><label class="b g" style="cursor:pointer">Файл Checkbox (XLSX/CSV)<input id="safile" type="file" accept=".csv,.txt,.tsv,.xlsx,.xls,text/plain,text/csv" hidden></label></div>';
  h+='<textarea id="satext" placeholder="Капучино;34&#10;Лате;21&#10;Круасан;12">'+E(SALE&&SALE.text||"")+'</textarea><div class="row"><button class="b" id="sago">Розібрати</button></div>';
  if(SALE&&SALE.rows){var R=SALE.rows,okc=R.filter(function(r){return r.tc||r.it}).length,bad=R.length-okc;
   h+='<h2>Перевірка</h2><p class="sub">Знайдено: '+okc+' з '+R.length+(bad?'. Незнайдені не спишуться, поки ви не оберете техкарту.':'.')+'</p><div class="tw"><table><thead><tr><th>Назва в касі</th><th>К-сть</th><th>Списання</th></tr></thead><tbody>'+R.map(function(r,k){
@@ -712,6 +712,33 @@ function vSa(){
  var days={};moves().forEach(function(m){if(m.k==="sl")days[m.d]=(days[m.d]||0)+1});var dk=Object.keys(days).sort().reverse().slice(0,14);
  if(dk.length)h+='<h2>Імпортовані дні</h2><div class="tw"><table><tbody>'+dk.map(function(d){return '<tr><td>'+dm(d)+'</td><td>позицій списано: '+days[d]+'</td><td><button class="b g" data-sacancel="'+d+'">Скасувати імпорт</button></td></tr>'}).join("")+'</tbody></table></div>';
  return h}
+
+function sheetRows(rows){
+ var hi=-1,ni=-1,qi=-1;
+ for(var r=0;r<Math.min(rows.length,15)&&hi<0;r++){var c=rows[r].map(function(x){return String(x==null?"":x).toLowerCase()}),a=-1,b=-1;
+  c.forEach(function(x,k){if(a<0&&/назва|товар|найменуванн|позиці|name/.test(x))a=k;if(b<0&&/кільк|к-сть|кіл-сть|qty|quantity/.test(x))b=k});
+  if(a>-1&&b>-1){hi=r;ni=a;qi=b}}
+ var out=[];
+ rows.forEach(function(row,r){if(hi>-1&&r<=hi)return;var nm,q;
+  if(hi>-1){nm=row[ni];q=num(row[qi])}else{nm=null;q=NaN;for(var k=0;k<row.length;k++){if(nm==null&&typeof row[k]==="string"&&/[A-Za-zА-Яа-яІіЇїЄє]/.test(row[k]))nm=row[k];else if(nm!=null&&isFinite(num(row[k]))){q=num(row[k]);break}}}
+  nm=String(nm==null?"":nm).replace(/[;\t\r\n]+/g," ").trim();if(nm&&q>0&&!/^(разом|підсумок|всього|итого|итог|total)\b/i.test(nm))out.push(nm+";"+q)});
+ return out.join("\n")}
+function csvRows(t){
+ t=String(t||"").replace(/^\uFEFF/,"");var first=t.split(/\r?\n/).slice(0,6).join("\n"),cnt={";":(first.match(/;/g)||[]).length,"\t":(first.match(/\t/g)||[]).length,",":(first.match(/,/g)||[]).length},dl=";";
+ if(cnt["\t"]>cnt[dl])dl="\t";if(cnt[","]>cnt[dl])dl=",";
+ var rows=[],row=[],cur="",q=false;
+ for(var k=0;k<t.length;k++){var c=t[k];
+  if(q){if(c==='"'){if(t[k+1]==='"'){cur+='"';k++}else q=false}else cur+=c}
+  else if(c==='"')q=true;else if(c===dl){row.push(cur);cur=""}else if(c==="\n"){row.push(cur);rows.push(row);row=[];cur=""}else if(c!=="\r")cur+=c}
+ if(cur!==""||row.length){row.push(cur);rows.push(row)}
+ return rows}
+async function readSales(fl){
+ try{var n=fl.name.toLowerCase(),txt;
+  if(/\.(xlsx|xls)$/.test(n)){toast("Читаю таблицю…",0,1);if(!window.XLSX)await lib("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");var wb=XLSX.read(await fl.arrayBuffer(),{type:"array"}),best="";wb.SheetNames.forEach(function(sn){var t=sheetRows(XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:""}));if(t.length>best.length)best=t});txt=best}
+  else{var raw=await fl.text();txt=/\.(csv|tsv)$/.test(n)?(sheetRows(csvRows(raw))||(/\n/.test(raw)&&raw.indexOf(";")>-1?raw:"")):raw}
+  if(!txt){showErr("У файлі не знайдено колонок «Назва» і «Кількість». Скопіюйте їх вручну в поле нижче.");return}
+  if(g("satext"))g("satext").value=txt;saParse();toast("Файл прочитано")
+ }catch(e){showErr("Файл: "+((e&&e.message)||"помилка"))}}
 function saParse(){var d=g("sadate").value||today(),t=g("satext").value;SALE={date:d,text:t,rows:matchSales(parseSales(t))};if(!SALE.rows.length)toast("Не знайдено рядків «назва;кількість»");render()}
 async function saApply(){
  if(!SALE||!SALE.rows)return;var d=g("sadate").value||SALE.date,need={},unk=0;
@@ -899,7 +926,7 @@ document.addEventListener("click",async function(ev){
 });
 document.addEventListener("input",function(e){if(e.target&&e.target.id==="skq")render()});
 document.addEventListener("change",function(e){var t=e.target;if(!t)return;
- if(t.id==="skm"||t.id==="skim")render();else if(t.id==="prold")renderPr();else if(t.id==="skauto"){try{localStorage.setItem("latte-sk-auto",t.checked?"1":"0")}catch(x){}}else if(t.id==="sasel"){}else if(t.dataset&&t.dataset.sasel!==undefined){}else if(t.id==="safile"&&t.files[0]){t.files[0].text().then(function(x){if(g("satext"))g("satext").value=x;toast("Файл прочитано, натисніть «Розібрати»")});}else if(t.id==="prfly"&&t.files.length){flyer(Array.prototype.slice.call(t.files));t.value=""}});
+ if(t.id==="skm"||t.id==="skim")render();else if(t.id==="prold")renderPr();else if(t.id==="skauto"){try{localStorage.setItem("latte-sk-auto",t.checked?"1":"0")}catch(x){}}else if(t.id==="sasel"){}else if(t.dataset&&t.dataset.sasel!==undefined){}else if(t.id==="safile"&&t.files[0]){var fl=t.files[0];t.value="";readSales(fl)}else if(t.id==="prfly"&&t.files.length){flyer(Array.prototype.slice.call(t.files));t.value=""}});
 document.addEventListener("keydown",function(e){if(e.key==="Enter"&&e.target&&(e.target.id==="prp"||e.target.id==="prq")){e.preventDefault();prAdd()}});
 var _ra=renderAll;renderAll=function(){_ra();render()};
 var _st=showTab;showTab=function(t){_st(t);if(t==="sk"){render();pull(0);info()}else if(t==="pr")renderPr()};
