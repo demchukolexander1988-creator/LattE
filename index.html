@@ -59,7 +59,7 @@ textarea{width:100%;min-height:110px}
 <div class="row"><button class="b g" id="inst" hidden>⬇ Встановити на робочий стіл / екран</button></div>
 <p class="sub" id="ios" hidden>iPhone/iPad: натисніть «Поділитися» → «На початковий екран».</p>
 <nav id="nav"></nav>
-<section id="ov"></section><section id="e" hidden></section><section id="i" hidden></section><section id="st" hidden></section><section id="pay" hidden></section><section id="set" hidden></section>
+<section id="ov"></section><section id="e" hidden></section><section id="i" hidden></section><section id="st" hidden></section><section id="pay" hidden></section><section id="sk" hidden></section><section id="pr" hidden></section><section id="set" hidden></section>
 </div>
 <input class="vh" type="file" id="scan" accept="image/*" multiple>
 <dialog id="dlg"><form method="dialog" id="fm" onsubmit="return false">
@@ -119,7 +119,7 @@ function esc(s){var d=document.createElement("div");d.textContent=s==null?"":s;r
 function f(n,d){return Number(n||0).toLocaleString("uk-UA",{minimumFractionDigits:d||0,maximumFractionDigits:d||0})}
 function money(n){return f(n,2)+" "+CFG.cur}
 function today(){return new Date().toLocaleDateString("sv")}
-function all(){return Object.keys(DOCS).filter(function(k){return k!=="cfg"}).map(function(k){var o=DOCS[k];o.id=k;return o})}
+function all(){return Object.keys(DOCS).filter(function(k){return k!=="cfg"&&k.indexOf("sk:")!==0&&k.indexOf("pr:")!==0}).map(function(k){var o=DOCS[k];o.id=k;return o})}
 function toast(m,id,st){var t=$("toast");t.innerHTML=esc(m)+(id?' <button data-ed="'+id+'">Змінити</button>':"");t.hidden=false;clearTimeout(toast.h);if(!st)toast.h=setTimeout(function(){t.hidden=true},6000)}
 function persist(id,o){if(col){var p=o===null?col.doc(id).delete():col.doc(id).set(o);p.catch(function(e){showErr("Не вдалося зберегти зміни у хмару: "+((e&&(e.code||e.message))||"помилка"))})}else{try{localStorage.setItem("latte-fin",JSON.stringify(DOCS))}catch(e){}if(typeof markDirty==="function")markDirty(id)}}
 function put(id,o){DOCS[id]=o;persist(id,o);renderAll()}
@@ -181,8 +181,8 @@ function renderSet(){$("set").innerHTML='<div class="c"><label><input type="chec
 '<h2>Розпізнавання чеків і файлів (Claude API)</h2><p class="sub">Потрібен ваш ключ Claude API (оплата за використання). Ключ зберігається лише в цьому браузері.</p><div class="row"><input id="akey" type="password" autocomplete="off" placeholder="Ключ API (sk-ant-…)" value="'+esc(localStorage.getItem("latte-key")||"")+'"><input id="amod" size="18" aria-label="Модель" value="'+esc(localStorage.getItem("latte-model")||"claude-sonnet-5-5")+'"><button class="b" id="skey">Зберегти</button></div>'+
 '<h2>Дані</h2><div class="row"><button class="b g" id="xcsv">Експорт CSV</button><button class="b g" id="xjson">Резервна копія JSON</button><button class="b g" id="imp">Імпорт JSON</button><button class="b g" id="dg">Перевірити розпізнавання</button><button class="b g e" id="rst">Видалити всі операції</button><input class="vh" type="file" id="impf" accept=".json"></div>'}
 function renderAll(){renderOv();fillCat("e");fillCat("i");renderList("e");renderList("i");renderStats();if(tab!=="set"||!$("sce"))renderSet()}
-function showTab(t){tab=t;["ov","e","i","st","pay","set"].forEach(function(x){$(x).hidden=x!==t});Array.prototype.forEach.call($("nav").children,function(b){b.setAttribute("aria-selected",b.dataset.t===t)})}
-[["ov","Огляд"],["e","Витрати"],["i","Доходи"],["st","Статистика"],["pay","Зарплата"],["set","Налаштування"]].forEach(function(t){var b=document.createElement("button");b.textContent=t[1];b.dataset.t=t[0];b.onclick=function(){showTab(t[0])};$("nav").appendChild(b)});
+function showTab(t){tab=t;["ov","e","i","st","pay","sk","pr","set"].forEach(function(x){$(x).hidden=x!==t});Array.prototype.forEach.call($("nav").children,function(b){b.setAttribute("aria-selected",b.dataset.t===t)})}
+[["ov","Огляд"],["e","Витрати"],["i","Доходи"],["st","Статистика"],["pay","Зарплата"],["sk","Склад"],["pr","Акції"],["set","Налаштування"]].forEach(function(t){var b=document.createElement("button");b.textContent=t[1];b.dataset.t=t[0];b.onclick=function(){showTab(t[0])};$("nav").appendChild(b)});
 function sel(id,list,v){var h=list.map(function(x){return"<option>"+esc(x)+"</option>"}).join("");if(v&&list.indexOf(v)<0)h+="<option>"+esc(v)+"</option>";$(id).innerHTML=h;if(v)$(id).value=v}
 function setT(t){FT=t;Array.prototype.forEach.call($("ft").children,function(b){b.setAttribute("aria-pressed",b.dataset.t===t)});var v=$("fc").value;sel("fc",t==="e"?CFG.ce:CFG.ci,v)}
 function openTx(id,t,pre){ED=id;var o=id?DOCS[id]:(pre||{});FT=o.t||t||"e";$("fd").value=o.d||today();$("fa").value=o.a?String(o.a).replace(".",","):"";$("fv").value=o.v||"";$("fg").value=o.g||"";$("fn").value=o.n||"";sel("fp",CFG.pm,o.m);$("fc").innerHTML="";sel("fc",FT==="e"?CFG.ce:CFG.ci,o.c);setT(FT);$("fdl").hidden=!id;$("dlg").showModal()}
@@ -497,6 +497,305 @@ setTimeout(function(){sync(0)},6500);
 document.addEventListener("visibilitychange",function(){if(!document.hidden)sync(0)});
 setInterval(function(){if(!document.hidden)sync(0)},600000);
 render()})();
+(function(){
+var QU="latte-qr-url",QT="latte-qr-token",DEFURL="https://latte-pay.demchukolexander1988.workers.dev",AF="latte-sk-after",VW="latte-sk-view",PUBK="latte-sk-pub",SCODE="latte-sk-code";
+var UN=["шт","кг","г","л","мл","пак"],REAS=["брак","термін","розбито","дегустація","частування","інше"];
+var view=localStorage.getItem(VW)||"bal",busy=0,SRV=null,pubT=0,pubMsg="",flyBusy=0;
+var CH0=[
+ {n:"GoToShop: каталоги акцій у Кропивницькому",u:"https://gotoshop.ua/kirovograd/catalog/",t:"city"},
+ {n:"АТБ у Кропивницькому (GoToShop)",u:"https://gotoshop.ua/kirovograd/shops/atb/",t:"city"},
+ {n:"Файно маркет у Кропивницькому (GoToShop)",u:"https://gotoshop.ua/kirovograd/shops/fajno-market/",t:"city"},
+ {n:"PromoKarta: Кропивницький",u:"https://promokarta.com/kropyvnytskyi/",t:"city"},
+ {n:"АТБ у Кропивницькому (De-Deshevshe)",u:"https://de-deshevshe.com.ua/city/kropyvnytskyi/shop/atbmarket.com/",t:"city"},
+ {n:"АТБ",u:"https://www.atbmarket.com/",t:"chain"},
+ {n:"Файно маркет",u:"https://fayno.market/",t:"chain"},
+ {n:"Сільпо",u:"https://silpo.ua/",t:"chain"},
+ {n:"Novus",u:"https://novus.ua/",t:"chain"},
+ {n:"Varus",u:"https://varus.ua/",t:"chain"},
+ {n:"METRO",u:"https://www.metro.ua/",t:"chain"}];
+function g(id){return document.getElementById(id)}
+function E(s){return esc(s==null?"":String(s))}
+function num(v){var n=parseFloat(String(v==null?"":v).replace(/\s/g,"").replace(",","."));return isFinite(n)?n:NaN}
+function fm(n,d){return (Math.round(n*1000)/1000).toLocaleString("uk-UA",{maximumFractionDigits:d==null?3:d})}
+function mny(n){return (Math.round(n*100)/100).toLocaleString("uk-UA",{minimumFractionDigits:2,maximumFractionDigits:2})+" "+CFG.cur}
+function kd(ts){return new Date(ts).toLocaleDateString("sv",{timeZone:"Europe/Kiev"})}
+function kt(ts){return new Date(ts).toLocaleTimeString("uk-UA",{timeZone:"Europe/Kiev",hour:"2-digit",minute:"2-digit"})}
+function dm(d){var a=String(d||"").split("-");return a.length===3?a[2]+"."+a[1]+"."+a[0].slice(2):String(d||"")}
+function nid(){return "i"+Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
+function srv(){return (localStorage.getItem(QU)||DEFURL).trim().replace(/\/+$/,"")}
+function tok(){return (localStorage.getItem(QT)||"").trim()}
+function api(path,body){
+ var t=tok();if(!t)return Promise.reject(new Error("Спершу введіть токен у Налаштуваннях (розділ «QR-оплати»)."));
+ if(/[^\x00-\xFF]/.test(t))return Promise.reject(new Error("Токен містить не латинські символи. Перемкніть клавіатуру на англійську."));
+ var h={"Authorization":"Bearer "+t};if(body)h["Content-Type"]="application/json";
+ return fetch(srv()+path,{method:body?"POST":"GET",headers:h,body:body?JSON.stringify(body):undefined}).then(function(r){return r.json().catch(function(){return{}}).then(function(j){
+  if(r.status===401)throw new Error("Невірний токен (STATS_TOKEN)");
+  if(!r.ok)throw new Error(j.error||("Помилка сервера ("+r.status+")"));
+  return j})})}
+function markIds(ids){if(typeof syncOn==="function"&&syncOn()){var D={};try{D=JSON.parse(localStorage.getItem("latte-dirty")||"{}")}catch(e){}ids.forEach(function(id){D[id]=1});try{localStorage.setItem("latte-dirty",JSON.stringify(D))}catch(e){}setTimeout(function(){tgSync(1,1)},1500)}}
+function saveMany(ids){if(col){ids.forEach(function(id){persist(id,DOCS[id])})}else{try{localStorage.setItem("latte-fin",JSON.stringify(DOCS))}catch(e){}markIds(ids)}}
+function items(){return Object.keys(DOCS).filter(function(k){return k.indexOf("sk:i:")===0}).map(function(k){return Object.assign({id:k.slice(5)},DOCS[k])}).sort(function(a,b){return a.n.localeCompare(b.n,"uk")})}
+function itemById(id){var o=DOCS["sk:i:"+id];return o?Object.assign({id:id},o):null}
+function moves(){return Object.keys(DOCS).filter(function(k){return k.indexOf("sk:m:")===0&&!DOCS[k].del}).map(function(k){return Object.assign({id:k},DOCS[k])})}
+function pend(){return Object.keys(DOCS).filter(function(k){return k.indexOf("sk:n:")===0&&!DOCS[k].done}).map(function(k){return Object.assign({id:k},DOCS[k])}).sort(function(a,b){return a.ts-b.ts})}
+function inm(id){var i=itemById(id);return i?i.n:"(видалений товар)"}
+function inu(id){var i=itemById(id);return i?i.u:""}
+function bcs(s){var o=[];String(s||"").split(/[\s,;]+/).forEach(function(x){x=x.replace(/[^0-9A-Za-z-]/g,"").slice(0,24);if(x&&o.indexOf(x)<0)o.push(x)});return o}
+function nz(c){var s=String(c).toLowerCase();return /^[0-9]+$/.test(s)?s.replace(/^0+/,""):s}
+function bcOwner(code,except){var n=nz(code),its=items();for(var i=0;i<its.length;i++){if(its[i].id===except)continue;var b=its[i].bc||[];for(var j=0;j<b.length;j++)if(nz(b[j])===n)return its[i]}return null}
+
+/* ---- розрахунки ---- */
+function calc(){
+ var its=items(),mv=moves(),by={},now=Date.now(),d30=now-30*864e5;
+ its.forEach(function(i){by[i.id]={it:i,ct:[],wo:[],wo30:0,wo30c:0}});
+ mv.forEach(function(m){var r=by[m.i];if(!r)return;(m.k==="ct"?r.ct:r.wo).push(m)});
+ its.forEach(function(i){var r=by[i.id];r.ct.sort(function(a,b){return a.ts-b.ts});r.wo.sort(function(a,b){return a.ts-b.ts});
+  r.last=r.ct.length?r.ct[r.ct.length-1]:null;r.after=0;
+  r.wo.forEach(function(m){if(r.last&&m.ts>r.last.ts)r.after+=m.q;if(m.ts>=d30){r.wo30+=m.q;r.wo30c+=m.q*(i.p||0)}});
+  r.calc=r.last?r.last.q-r.after:null;
+  r.diffs=[];for(var k=0;k<r.ct.length;k++){var c=r.ct[k],p=k?r.ct[k-1]:null;if(!p){r.diffs.push({m:c,exp:null,diff:null});continue}
+   var w=0;r.wo.forEach(function(x){if(x.ts>p.ts&&x.ts<=c.ts)w+=x.q});var exp=p.q-w;r.diffs.push({m:c,exp:exp,diff:c.q-exp})}});
+ return by}
+
+/* ---- синхронізація ---- */
+function nav(){var n=pend().length,b=document.querySelector('#nav [data-t="sk"]');if(b)b.textContent="Склад"+(n?" ("+n+")":"")}
+async function pull(manual){
+ if(busy)return;if(!tok()){if(manual)toast("Спершу введіть токен у Налаштуваннях (розділ «QR-оплати»)");return}
+ busy=1;try{
+  var after=localStorage.getItem(AF)||"",ids=[],guard=0,more=false;
+  do{var j=await api("/api/skx/events?after="+encodeURIComponent(after));
+   (j.events||[]).forEach(function(ev){var suf=String(ev.k).slice(6),d=kd(ev.ts);
+    if(ev.t==="nw"){var id="sk:n:"+suf;if(!DOCS[id]){DOCS[id]={m:ev.m||"wo",nm:ev.nm||"",u:ev.u||"шт",q:ev.q,b:ev.b||"",w:ev.w||"",r:ev.r||"",ts:ev.ts,d:d};ids.push(id)}}
+    else{var id2="sk:m:"+suf;if(!DOCS[id2]){DOCS[id2]={k:ev.t,i:ev.i,q:ev.q,r:ev.r||"",w:ev.w||"",b:ev.b||"",ts:ev.ts,d:d};ids.push(id2)}}
+    after=ev.k});more=!!j.more}while(more&&++guard<20);
+  try{localStorage.setItem(AF,after)}catch(e){}
+  if(ids.length)saveMany(ids);
+  render();if(manual||ids.length)toast(ids.length?"Склад: нових записів зі сканера "+ids.length:"Склад: нових записів немає")
+ }catch(e){if(manual)showErr("Склад: "+((e&&e.message)||"помилка")+(e&&e.name==="TypeError"?"\nПеревірте адресу сервера й інтернет.":""))}
+ busy=0}
+function pubNow(){
+ clearTimeout(pubT);
+ if(!tok()){pubMsg="Каталог не опубліковано: немає токена в Налаштуваннях.";render();return Promise.resolve()}
+ var its=items().map(function(i){return{id:i.id,n:i.n,u:i.u,bc:i.bc||[]}});
+ pubMsg="Публікую каталог…";
+ return api("/api/skx/cat",{items:its}).then(function(j){pubMsg="Каталог опубліковано: "+j.n+" товарів ("+new Date().toLocaleTimeString("uk-UA",{hour:"2-digit",minute:"2-digit"})+")";try{localStorage.removeItem(PUBK)}catch(e){}if(SRV)SRV.n=j.n;if(view==="acc"||view==="its")render()}).catch(function(e){pubMsg="Не вдалося опублікувати каталог: "+((e&&e.message)||"помилка")+". Спробуйте кнопку «Опублікувати».";try{localStorage.setItem(PUBK,"1")}catch(x){}if(view==="acc"||view==="its")render()})}
+function pubLater(){try{localStorage.setItem(PUBK,"1")}catch(e){}clearTimeout(pubT);pubT=setTimeout(pubNow,2500)}
+function info(){if(!tok())return;api("/api/skx/info").then(function(j){SRV=j;if(view==="acc")render()}).catch(function(){})}
+
+/* ---- відображення ---- */
+function seg(){var V=[["bal","Залишки"],["wo","Брак"],["ct","Підрахунки"],["its","Товари"],["new","Нові коди"+(pend().length?" ("+pend().length+")":"")],["acc","Доступ"]];
+ return '<div class="row" style="gap:4px;overflow-x:auto;flex-wrap:nowrap">'+V.map(function(v){return '<button class="b '+(view===v[0]?"":"g")+'" data-skv="'+v[0]+'" style="white-space:nowrap">'+v[1]+'</button>'}).join("")+'<button class="b g" id="skpull" style="margin-left:auto;white-space:nowrap">🔄 Оновити</button></div>'}
+function vBal(){
+ var by=calc(),q=(g("skq")&&g("skq").value)||"",ls=Object.keys(by).map(function(k){return by[k]}).filter(function(r){return !q||r.it.n.toLowerCase().indexOf(q.toLowerCase())>-1});
+ if(!items().length)return '<div class="note">Товарів ще немає. Відкрийте «Товари» й додайте перші позиції зі штрихкодами, потім опублікуйте каталог для сканера («Доступ»).</div>';
+ var low=ls.filter(function(r){return r.it.min>0&&r.calc!=null&&r.calc<r.it.min}).length;
+ var h='<div class="row"><input id="skq" placeholder="Пошук товару" value="'+E(q)+'" style="flex:1"></div>';
+ if(low)h+='<p class="e"><b>Нижче мінімуму: '+low+'</b></p>';
+ h+='<div class="tw"><table><thead><tr><th>Товар</th><th>Останній підрахунок</th><th>Брак після</th><th>Розрахунково</th><th>Мінімум</th></tr></thead><tbody>'+ls.map(function(r){
+  var warn=r.it.min>0&&r.calc!=null&&r.calc<r.it.min;
+  return '<tr data-iid="'+E(r.it.id)+'"><td>'+(warn?"⚠ ":"")+E(r.it.n)+'</td><td>'+(r.last?fm(r.last.q)+" "+E(r.it.u)+'<br><small class="sub">'+dm(r.last.d)+'</small>':"—")+'</td><td>'+(r.after?fm(r.after)+" "+E(r.it.u):"—")+'</td><td'+(warn?' class="e"':"")+'><b>'+(r.calc!=null?fm(r.calc)+" "+E(r.it.u):"—")+'</b></td><td>'+(r.it.min>0?fm(r.it.min)+" "+E(r.it.u):"—")+'</td></tr>'}).join("")+'</tbody></table></div>';
+ h+='<p class="sub">«Розрахунково» = останній підрахунок мінус брак після нього. Прихід і продажі поки не враховуються: вони з’являться на наступних етапах. Натисніть на рядок, щоб відкрити картку товару з історією.</p>';
+ return h}
+function vWo(){
+ var ym=(g("skm")&&g("skm").value)||today().slice(0,7),mv=moves().filter(function(m){return m.k==="wo"&&m.d.slice(0,7)===ym}).sort(function(a,b){return b.ts-a.ts});
+ var mons={};moves().forEach(function(m){if(m.k==="wo")mons[m.d.slice(0,7)]=1});mons[today().slice(0,7)]=1;
+ var ml=Object.keys(mons).sort().reverse(),tot=0,by={};
+ mv.forEach(function(m){var i=itemById(m.i),c=m.q*(i&&i.p||0);tot+=c;by[m.r||"інше"]=(by[m.r||"інше"]||0)+c});
+ var h='<div class="row"><label>Місяць <select id="skm">'+ml.map(function(x){return '<option'+(x===ym?" selected":"")+'>'+x+'</option>'}).join("")+'</select></label><b class="e" style="margin-left:auto">Вартість браку: '+mny(tot)+'</b></div>';
+ var rs=Object.keys(by).filter(function(k){return by[k]>0});if(rs.length)h+='<p class="sub">'+rs.map(function(k){return E(k)+": "+mny(by[k])}).join(" · ")+'</p>';
+ if(!mv.length)return h+'<div class="note">За цей місяць браку не записано.</div>';
+ h+='<div class="tw"><table><thead><tr><th>Коли</th><th>Товар</th><th>Кількість</th><th>Причина</th><th>Хто</th><th>Сума</th><th></th></tr></thead><tbody>'+mv.map(function(m){var i=itemById(m.i);
+  return '<tr><td>'+dm(m.d)+' '+kt(m.ts)+'</td><td>'+E(inm(m.i))+'</td><td>'+fm(m.q)+" "+E(inu(m.i))+'</td><td>'+E(m.r)+'</td><td>'+E(m.w)+'</td><td>'+(i&&i.p?mny(m.q*i.p):"—")+'</td><td><button class="b g" data-mdel="'+E(m.id)+'" aria-label="Видалити запис">✕</button></td></tr>'}).join("")+'</tbody></table></div>';
+ h+='<p class="sub">Вартість рахується за ціною, яку ви вказали в картці товару. Без ціни сума «—».</p>';
+ return h}
+function vCt(){
+ var by=calc(),rows=[];Object.keys(by).forEach(function(k){by[k].diffs.forEach(function(d){rows.push({it:by[k].it,d:d})})});
+ var oi=moves().filter(function(m){return m.k==="ct"&&!itemById(m.i)});oi.forEach(function(m){rows.push({it:{id:m.i,n:"(видалений товар)",u:"",p:0},d:{m:m,exp:null,diff:null}})});
+ rows.sort(function(a,b){return b.d.m.ts-a.d.m.ts});rows=rows.slice(0,200);
+ if(!rows.length)return '<div class="note">Підрахунків ще немає. Персонал або ви вносите їх на сторінці сканера (розділ «Доступ»).</div>';
+ var loss=0;rows.forEach(function(r){if(r.d.diff!=null&&r.d.diff<0)loss+=-r.d.diff*(r.it.p||0)});
+ var h='<p class="sub">Різниця = факт мінус очікуване (попередній підрахунок мінус брак між підрахунками). Недостачі в списку на суму '+mny(loss)+'.</p>';
+ h+='<div class="tw"><table><thead><tr><th>Коли</th><th>Товар</th><th>Факт</th><th>Очікувалось</th><th>Різниця</th><th>Хто</th><th></th></tr></thead><tbody>'+rows.map(function(r){var m=r.d.m;
+  return '<tr><td>'+dm(m.d)+' '+kt(m.ts)+'</td><td>'+E(r.it.n)+'</td><td>'+fm(m.q)+" "+E(r.it.u)+'</td><td>'+(r.d.exp!=null?fm(r.d.exp)+" "+E(r.it.u):"—")+'</td><td'+(r.d.diff!=null&&r.d.diff<0?' class="e"':"")+'>'+(r.d.diff!=null?(r.d.diff>0?"+":"")+fm(r.d.diff)+" "+E(r.it.u):"перший")+'</td><td>'+E(m.w)+'</td><td><button class="b g" data-mdel="'+E(m.id)+'" aria-label="Видалити запис">✕</button></td></tr>'}).join("")+'</tbody></table></div>';
+ return h}
+function vIts(){
+ var its=items(),h='<div class="row"><button class="b" id="skadd">+ Товар</button><button class="b g" id="skpub">Опублікувати каталог</button></div>';
+ h+='<p class="sub">'+E(pubMsg||"Каталог публікується для сканера автоматично після змін.")+'</p>';
+ if(its.length)h+='<div class="tw"><table><thead><tr><th>Товар</th><th>Од.</th><th>Штрихкоди</th><th>Мінімум</th><th>Ціна за од.</th></tr></thead><tbody>'+its.map(function(i){return '<tr data-iid="'+E(i.id)+'"><td>'+E(i.n)+'</td><td>'+E(i.u)+'</td><td>'+((i.bc||[]).length?E((i.bc||[]).join(", ")):"—")+'</td><td>'+(i.min>0?fm(i.min):"—")+'</td><td>'+(i.p>0?mny(i.p):"—")+'</td></tr>'}).join("")+'</tbody></table></div>';
+ else h+='<div class="note">Додайте товари по одному або вставте список нижче.</div>';
+ h+='<h2>Імпорт списку</h2><p class="sub">Один товар у рядку: <code>Назва;одиниця;штрихкод;мінімум;ціна</code>. Одиниця: шт, кг, г, л, мл або пак. Усе, крім назви, можна пропустити. Існуючі назви пропускаються.</p><textarea id="skimp" placeholder="Кава зерно Lavazza 1 кг;кг;8000070018464;2;540&#10;Молоко 2,5% 1 л;л;4820001234567;10;42"></textarea><div class="row"><button class="b g" id="skimpgo">Додати з тексту</button></div>';
+ return h}
+function vNew(){
+ var ps=pend();
+ if(!ps.length)return '<div class="note">Нових штрихкодів немає. Коли персонал сканує товар, якого немає в каталозі, він з’явиться тут: прив’яжіть його до товару або створіть новий.</div>';
+ return '<p class="sub">Ці записи надіслав персонал для товарів, яких немає в каталозі. Кількість зараховується до товару, коли ви його оберете.</p>'+ps.map(function(p){
+  return '<div class="c" style="margin:8px 0"><b>'+E(p.nm)+'</b><div class="sub">'+(p.m==="ct"?"Підрахунок: ":"Брак: ")+fm(p.q)+" "+E(p.u)+(p.r&&p.m==="wo"?" ("+E(p.r)+")":"")+" · "+E(p.w)+" · "+dm(p.d)+" "+kt(p.ts)+(p.b?" · код "+E(p.b):"")+'</div>'
+  +'<div class="row"><select data-bsel="'+E(p.id)+'"><option value="">— обрати існуючий товар —</option>'+items().map(function(i){return '<option value="'+E(i.id)+'">'+E(i.n)+'</option>'}).join("")+'</select><button class="b g" data-bind="'+E(p.id)+'">Прив’язати</button><button class="b" data-mk="'+E(p.id)+'">Створити товар</button><button class="b g" data-ign="'+E(p.id)+'">Прибрати</button></div></div>'}).join("")}
+function vAcc(){
+ var u=srv()+"/scan",code=localStorage.getItem(SCODE)||"",n=SRV&&SRV.n!=null?SRV.n:null,pin=SRV?SRV.pin:null;
+ var h='<h2 style="margin-top:0">Сторінка сканера для персоналу й адміністрації</h2>';
+ h+='<div class="c"><small>Посилання</small><b style="font-size:1rem;word-break:break-all">'+E(u)+'</b><div class="row"><button class="b g" id="skcopy">Копіювати</button><button class="b g" id="skshare">Поділитися</button><a class="b g" href="'+E(u)+'" target="_blank" rel="noopener" style="text-decoration:none">Відкрити</a></div></div>';
+ h+='<h2>Код доступу для персоналу</h2><p class="sub">Персонал вводить цей код на сторінці сканера один раз, телефон його запам’ятає. Сам код на сервері не зберігається, лише його захист. Ви можете заходити туди й зі своїм паролем адміністратора.</p>';
+ h+='<div class="row"><input id="skcode" placeholder="4–20 латинських літер чи цифр" value="'+E(code)+'" autocomplete="off" autocapitalize="off" style="flex:1;min-width:12em"><button class="b" id="skcodego">Зберегти код</button><button class="b g" id="skcodeoff">Вимкнути доступ персоналу</button></div>';
+ h+='<p class="sub">Стан: '+(pin==null?"перевіряю…":pin?"код для персоналу встановлено":"код не встановлено, персонал зайти не зможе")+(n!=null?"; у каталозі сканера "+n+" товарів":"")+'. '+E(pubMsg)+'</p>';
+ h+='<div class="row"><button class="b g" id="skpub2">Опублікувати каталог зараз</button></div>';
+ h+='<h2>Як користуватись</h2><ul><li>Відкрийте посилання на телефоні й додайте на головний екран.</li><li>Оберіть «Брак» або «Інвентаризація», відскануйте штрихкод камерою (кнопка 📷) або введіть код чи назву вручну.</li><li>USB- або Bluetooth-сканер теж підходить: клацніть у поле й скануйте, він друкує код і натискає Enter.</li><li>Немає товару в каталозі: персонал надсилає назву й кількість, у вас з’являється «Нові коди».</li><li>Без інтернету записи чекають у черзі й відправляються самі.</li></ul>';
+ h+='<p class="sub">Камера працює в Chrome на Android без додаткових бібліотек. На iPhone сканер підвантажує невелику бібліотеку з Інтернету.</p>';
+ return h}
+var vmap={bal:vBal,wo:vWo,ct:vCt,its:vIts,"new":vNew,acc:vAcc};
+function render(){
+ nav();var el=g("sk");if(!el||el.hidden&&tabNow()!=="sk"){renderPr();return}
+ var keep=(view==="bal"&&g("skq")&&document.activeElement===g("skq"))?g("skq").selectionStart:-1;
+ el.innerHTML=seg()+(vmap[view]||vBal)();
+ if(keep>-1&&g("skq")){g("skq").focus();try{g("skq").setSelectionRange(keep,keep)}catch(e){}}
+ renderPr()}
+function tabNow(){return typeof tab!=="undefined"?tab:""}
+
+/* ---- картка товару ---- */
+var DL=null;
+function dlg(){if(DL)return DL;DL=document.createElement("dialog");DL.id="skd";DL.style.width="min(560px,96vw)";document.body.appendChild(DL);return DL}
+function openItem(id){
+ var it=id?itemById(id):{id:"",n:"",u:"шт",bc:[],min:0,p:0},d=dlg(),by=id?calc()[id]:null;
+ var h='<h2 style="margin-top:0">'+(id?"Картка товару":"Новий товар")+'</h2>';
+ h+='<label>Назва<input id="sk-n" value="'+E(it.n)+'" autocomplete="off"></label>';
+ h+='<div class="row"><label style="flex:1">Одиниця<select id="sk-u">'+UN.map(function(u){return '<option'+(u===it.u?" selected":"")+'>'+u+'</option>'}).join("")+'</select></label><label style="flex:1">Мінімальний залишок<input id="sk-min" inputmode="decimal" value="'+(it.min>0?E(String(it.min).replace(".",",")):"")+'"></label><label style="flex:1">Ціна за одиницю, '+E(CFG.cur)+'<input id="sk-p" inputmode="decimal" value="'+(it.p>0?E(String(it.p).replace(".",",")):"")+'"></label></div>';
+ h+='<label>Штрихкоди (по одному в рядку; сканер USB додає рядок сам)<textarea id="sk-bc" style="min-height:70px" autocomplete="off" autocapitalize="off" spellcheck="false">'+E((it.bc||[]).join("\n"))+'</textarea></label>';
+ if(by){
+  h+='<h2>Історія</h2><div class="cards"><div class="c"><small>Останній підрахунок</small><b>'+(by.last?fm(by.last.q)+" "+E(it.u):"—")+'</b></div><div class="c"><small>Розрахунково</small><b>'+(by.calc!=null?fm(by.calc)+" "+E(it.u):"—")+'</b></div><div class="c"><small>Брак за 30 днів</small><b class="e">'+fm(by.wo30)+" "+E(it.u)+'</b>'+(it.p>0?'<small>'+mny(by.wo30c)+'</small>':"")+'</div></div>';
+  var hist=by.ct.concat(by.wo).sort(function(a,b){return b.ts-a.ts}).slice(0,30);
+  h+=hist.length?'<div class="tw"><table><tbody>'+hist.map(function(m){return '<tr><td>'+dm(m.d)+' '+kt(m.ts)+'</td><td>'+(m.k==="ct"?"підрахунок":"брак")+'</td><td>'+fm(m.q)+" "+E(it.u)+'</td><td>'+E(m.r||"")+'</td><td>'+E(m.w)+'</td></tr>'}).join("")+'</tbody></table></div>':'<p class="sub">Записів ще немає.</p>'}
+ h+='<div class="row" style="margin-top:12px"><button class="b" id="sk-save">Зберегти</button><button class="b g" id="sk-close">Закрити</button>'+(id?'<button class="b g e" id="sk-del" style="margin-left:auto">Видалити товар</button>':"")+'</div>';
+ d.innerHTML=h;d.dataset.iid=id||"";d.showModal();setTimeout(function(){g(id?"sk-min":"sk-n").focus()},50)}
+function saveItem(){
+ var d=dlg(),id=d.dataset.iid,n=g("sk-n").value.trim().replace(/\s+/g," ").slice(0,60);
+ if(!n){g("sk-n").focus();return}
+ var u=g("sk-u").value,mn=g("sk-min").value.trim()===""?0:num(g("sk-min").value),p=g("sk-p").value.trim()===""?0:num(g("sk-p").value),b=bcs(g("sk-bc").value);
+ if(!(mn>=0)||!(p>=0)){showErr("Мінімум і ціна мають бути числами (або порожніми).");return}
+ for(var k=0;k<b.length;k++){var o=bcOwner(b[k],id);if(o){showErr("Штрихкод "+b[k]+" уже належить товару «"+o.n+"».");return}}
+ var dup=items().filter(function(x){return x.id!==id&&x.n.toLowerCase()===n.toLowerCase()})[0];
+ if(dup){showErr("Товар «"+n+"» уже є в каталозі.");return}
+ var nid2=id||nid(),o2={n:n,u:u,bc:b,min:mn,p:p,ts:Date.now()};DOCS["sk:i:"+nid2]=o2;persist("sk:i:"+nid2,o2);
+ d.close();pubLater();render();toast("Товар збережено")}
+async function delItem(){
+ var d=dlg(),id=d.dataset.iid,it=itemById(id);if(!it)return;
+ d.close();if(!await ask("Видалити товар «"+it.n+"» з каталогу? Історія записів залишиться.")){d.showModal();return}
+ delete DOCS["sk:i:"+id];persist("sk:i:"+id,null);pubLater();render();toast("Товар видалено")}
+async function importList(){
+ var t=g("skimp").value,n=0,sk=0,bad=0,have={},ids=[];items().forEach(function(i){have[i.n.toLowerCase()]=1});
+ t.split(/\r?\n/).forEach(function(l){l=l.trim();if(!l)return;var a=l.split(/[;\t]/).map(function(x){return x.trim()}),nm=(a[0]||"").replace(/\s+/g," ").slice(0,60);
+  if(!nm){bad++;return}if(have[nm.toLowerCase()]){sk++;return}
+  var u=UN.indexOf(a[1])>-1?a[1]:"шт",b=bcs(a[2]),mn=a[3]?num(a[3]):0,p=a[4]?num(a[4]):0;
+  for(var k=0;k<b.length;k++){if(bcOwner(b[k],"")){b.splice(k,1);k--}}
+  var id="sk:i:"+nid()+n;DOCS[id]={n:nm,u:u,bc:b,min:mn>0?mn:0,p:p>0?p:0,ts:Date.now()};ids.push(id);have[nm.toLowerCase()]=1;n++});
+ if(!ids.length){toast("Нічого не додано"+(sk?": усі назви вже є":""));return}
+ saveMany(ids);g("skimp").value="";pubLater();render();toast("Додано товарів: "+n+(sk?", пропущено дублів: "+sk:"")+(bad?", некоректних рядків: "+bad:""))}
+
+/* ---- «нові коди» ---- */
+function resolve(pid,itemId){
+ var p=DOCS[pid];if(!p)return;var it=itemById(itemId);if(!it)return;var ids=[];
+ if(p.b&&!bcOwner(p.b,"")){it.bc=(it.bc||[]).concat([p.b]);var o={n:it.n,u:it.u,bc:it.bc,min:it.min||0,p:it.p||0,ts:Date.now()};DOCS["sk:i:"+itemId]=o;ids.push("sk:i:"+itemId)}
+ var mid="sk:m:"+pid.slice(5);DOCS[mid]={k:p.m,i:itemId,q:p.q,r:p.r||"",w:p.w||"",b:p.b||"",ts:p.ts,d:p.d};ids.push(mid);
+ DOCS[pid]=Object.assign({},p,{done:1});ids.push(pid);saveMany(ids);pubLater();render();toast("Записано до товару «"+it.n+"»")}
+function mkItem(pid){
+ var p=DOCS[pid];if(!p)return;
+ if(items().some(function(x){return x.n.toLowerCase()===String(p.nm).toLowerCase()})){showErr("Товар «"+p.nm+"» уже є. Оберіть його у списку й натисніть «Прив’язати».");return}
+ var iid=nid(),b=p.b&&!bcOwner(p.b,"")?[p.b]:[];DOCS["sk:i:"+iid]={n:p.nm,u:p.u||"шт",bc:b,min:0,p:0,ts:Date.now()};
+ var ids=["sk:i:"+iid],mid="sk:m:"+pid.slice(5);DOCS[mid]={k:p.m,i:iid,q:p.q,r:p.r||"",w:p.w||"",b:p.b||"",ts:p.ts,d:p.d};ids.push(mid);
+ DOCS[pid]=Object.assign({},p,{done:1});ids.push(pid);saveMany(ids);pubLater();render();toast("Створено товар «"+p.nm+"». Додайте ціну й мінімум у картці.")}
+function ignore(pid){var p=DOCS[pid];if(!p)return;DOCS[pid]=Object.assign({},p,{done:1});persist(pid,DOCS[pid]);render()}
+async function mdel(id){
+ var m=DOCS[id];if(!m)return;if(!await ask("Видалити цей запис ("+inm(m.i)+", "+fm(m.q)+")?"))return;
+ DOCS[id]=Object.assign({},m,{del:1});persist(id,DOCS[id]);render()}
+
+/* ---- акції ---- */
+function promos(){return Object.keys(DOCS).filter(function(k){return k.indexOf("pr:p:")===0&&!DOCS[k].del}).map(function(k){return Object.assign({id:k},DOCS[k])})}
+function chainsCustom(){var c=DOCS["pr:cfg"];return c&&c.chains?c.chains:[]}
+function chainNames(){return CH0.filter(function(c){return c.t==="chain"}).map(function(c){return c.n}).concat(chainsCustom().map(function(c){return c.n}))}
+function base(price,q,u){
+ if(!(price>0))return null;var k=q>0?q:1;
+ if(u==="г")return{v:price/k*1000,b:"кг"};if(u==="кг")return{v:price/k,b:"кг"};
+ if(u==="мл")return{v:price/k*1000,b:"л"};if(u==="л")return{v:price/k,b:"л"};
+ return{v:price/k,b:u==="пак"?"пак":"шт"}}
+function proH(){
+ var dt=new Date();dt.setDate(dt.getDate()+7);var until=dt.toLocaleDateString("sv");
+ var h='<h2 style="margin-top:0">Де дивитися акції в Кропивницькому</h2><p class="sub">Ціни з сайтів тут автоматично не підтягуються. Відкрийте каталог, знайдіть вигідну позицію й додайте її в трекер нижче: програма порівняє акцію з вашою ціною закупівлі.</p>';
+ h+='<h2>Каталоги за містом</h2><div class="row" style="flex-direction:column;align-items:stretch">'+CH0.filter(function(c){return c.t==="city"}).map(function(c){return '<a class="b g" href="'+E(c.u)+'" target="_blank" rel="noopener" style="text-decoration:none;text-align:left">'+E(c.n)+' ↗</a>'}).join("")+'</div>';
+ h+='<h2>Сайти мереж</h2><p class="sub">Чи є магазин мережі в місті, перевіряйте на сайті мережі або в каталогах вище.</p><div class="row">'+CH0.filter(function(c){return c.t==="chain"}).concat(chainsCustom().map(function(c){return{n:c.n,u:c.u,x:1}})).map(function(c){return '<a class="b g" href="'+E(c.u)+'" target="_blank" rel="noopener" style="text-decoration:none">'+E(c.n)+' ↗</a>'+(c.x?'<button class="b g" data-chdel="'+E(c.n)+'" aria-label="Прибрати мережу">✕</button>':"")}).join("")+'</div><div class="row"><input id="prchn" placeholder="Назва мережі" style="width:10em"><input id="prchu" placeholder="https://…" style="flex:1;min-width:10em"><button class="b g" id="prchadd">+ Додати мережу</button></div>';
+ h+='<h2>Додати акційну позицію</h2>';
+ h+='<div class="row"><input id="prn" list="prdl" placeholder="Товар (як у каталозі або вільно)" style="flex:2;min-width:12em" autocomplete="off"><datalist id="prdl">'+items().map(function(i){return '<option value="'+E(i.n)+'">'}).join("")+'</datalist><select id="prc" style="flex:1;min-width:8em">'+chainNames().map(function(c){return '<option>'+E(c)+'</option>'}).join("")+'</select></div>';
+ h+='<div class="row"><input id="prp" inputmode="decimal" placeholder="Ціна, '+E(CFG.cur)+'" style="width:8em"><input id="prq" inputmode="decimal" placeholder="Фасування" style="width:7em"><select id="pru">'+UN.map(function(u){return '<option>'+u+'</option>'}).join("")+'</select><label class="sub">діє до <input id="prd" type="date" value="'+until+'"></label><button class="b" id="pradd">Додати</button></div>';
+ h+='<div class="row"><label class="b g" style="cursor:pointer">📷 Розпізнати листівку або скріншот<input id="prfly" type="file" accept="image/*" multiple hidden></label><span class="sub">Мережа береться з поля вище. Потрібен ключ Claude API у Налаштуваннях.</span></div>';
+ var now=today(),show=g("prold")&&g("prold").checked,list=promos().filter(function(p){return show||!p.until||p.until>=now}).map(function(p){
+  var it=p.item?itemById(p.item):items().filter(function(i){return i.n.toLowerCase()===String(p.n).toLowerCase()})[0],b=base(p.pr,p.q,p.u),cmp=null;
+  if(b&&it&&it.p>0){var ib=base(it.p,1,it.u);if(ib&&ib.b===b.b)cmp={mine:ib.v,pc:(b.v-ib.v)/ib.v*100,b:b.b}}
+  return{p:p,b:b,cmp:cmp,exp:p.until&&p.until<now}}).sort(function(a,c){var x=a.cmp?a.cmp.pc:999,y=c.cmp?c.cmp.pc:999;return x-y||String(a.p.until||"").localeCompare(String(c.p.until||""))});
+ h+='<h2>Трекер акцій</h2><div class="row"><label class="sub"><input type="checkbox" id="prold"'+(show?" checked":"")+'> показати прострочені</label></div>';
+ if(!list.length)h+='<div class="note">Акційних позицій немає. Додайте першу вище.</div>';
+ else h+='<div class="tw"><table><thead><tr><th>Товар</th><th>Мережа</th><th>Ціна</th><th>За одиницю</th><th>Ваша ціна</th><th>Різниця</th><th>Діє до</th><th></th></tr></thead><tbody>'+list.map(function(r){var p=r.p;
+  return '<tr'+(r.exp?' style="opacity:.5"':"")+'><td>'+E(p.n)+(p.q>0?'<br><small class="sub">'+fm(p.q)+" "+E(p.u)+'</small>':"")+'</td><td>'+E(p.ch)+'</td><td>'+mny(p.pr)+'</td><td>'+(r.b?mny(r.b.v)+" / "+r.b.b:"—")+'</td><td>'+(r.cmp?mny(r.cmp.mine)+" / "+r.cmp.b:"—")+'</td><td'+(r.cmp?(r.cmp.pc<=-5?' class="i"':r.cmp.pc>=5?' class="e"':""):"")+'>'+(r.cmp?(r.cmp.pc>0?"+":"")+fm(r.cmp.pc,0)+"%":"—")+'</td><td>'+(p.until?dm(p.until):"—")+'</td><td><button class="b g" data-prdel="'+E(p.id)+'" aria-label="Видалити">✕</button></td></tr>'}).join("")+'</tbody></table></div><p class="sub">Різниця рахується, коли для товару в каталозі склада вказана ціна за одиницю й одиниці співставні (кг, л чи шт). Зелений: дешевше за вашу ціну щонайменше на 5%.</p>';
+ return h}
+function renderPr(){var el=g("pr");if(!el)return;if(el.hidden&&tabNow()!=="pr")return;
+ var a=document.activeElement,fid=a&&a.id&&el.contains(a)?a.id:"",vals={};["prn","prc","prp","prq","pru","prd","prchn","prchu"].forEach(function(i){if(g(i))vals[i]=g(i).value});
+ el.innerHTML=proH();Object.keys(vals).forEach(function(i){if(g(i)&&vals[i]!==""&&i!=="prd")g(i).value=vals[i]});if(vals.prd&&g("prd"))g("prd").value=vals.prd;if(fid&&g(fid))g(fid).focus()}
+function addPromo(o){var id="pr:p:"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);DOCS[id]=o;return id}
+function prAdd(){
+ var n=g("prn").value.trim().slice(0,80),pr=num(g("prp").value),q=g("prq").value.trim()===""?0:num(g("prq").value);
+ if(!n){g("prn").focus();return}if(!(pr>0)){g("prp").focus();toast("Вкажіть ціну акції");return}if(!(q>=0)){g("prq").focus();return}
+ var it=items().filter(function(i){return i.n.toLowerCase()===n.toLowerCase()})[0],o={n:n,ch:g("prc").value,pr:pr,q:q,u:g("pru").value,until:g("prd").value||"",ts:Date.now()};if(it)o.item=it.id;
+ var id=addPromo(o);persist(id,o);g("prn").value="";g("prp").value="";g("prq").value="";renderPr();toast("Акцію додано")}
+async function flyer(files){
+ if(flyBusy)return;flyBusy=1;
+ try{toast("Готую розпізнавання…",0,1);var Ev=await env();
+  if(!Ev.rt){g("toast").hidden=true;showErr("Розпізнавання не працює у збереженому чи експортованому файлі.\nВідкрийте додаток за посиланням у вашому акаунті claude.ai.");flyBusy=0;return}
+  if(!Ev.sm){g("toast").hidden=true;showErr("Claude недоступний у цьому вікні.");flyBusy=0;return}
+  SMP=Ev.sm;var ch=g("prc").value,added=0,ids=[];
+  for(var i=0;i<files.length;i++){toast("Розпізнаю "+(i+1)+" з "+files.length+"… (до хвилини)",0,1);
+   try{var r=await recog(files[i],"Це фото або скріншот акційної листівки чи сторінки акцій магазину в Україні. Витягни акційні товари й поверни ЛИШЕ JSON без пояснень: {\"items\":[{\"name\":\"назва товару як на листівці\",\"price\":число (акційна ціна за упаковку в гривнях, крапка як роздільник),\"qty\":число (вага чи об'єм упаковки, або null),\"unit\":\"кг|г|л|мл|шт|null\",\"until\":\"YYYY-MM-DD або null\"}]}. Не вигадуй: якщо ціни не видно, пропусти товар. Сьогодні "+today()+".");
+    (r&&r.items||[]).forEach(function(x){var pr=num(x.price);if(!x||!x.name||!(pr>0))return;var q=num(x.qty);
+     var o={n:String(x.name).slice(0,80),ch:ch,pr:pr,q:q>0?q:0,u:UN.indexOf(x.unit)>-1?x.unit:"шт",until:/^\d{4}-\d{2}-\d{2}$/.test(x.until||"")?x.until:"",ts:Date.now()};
+     ids.push(addPromo(o));added++})}
+   catch(e){g("toast").hidden=true;showErr("Не вдалося розпізнати: "+((e&&e.message)||"помилка")+"\nФайл: "+files[i].name)}}
+  if(ids.length)saveMany(ids);renderPr();toast(added?"З листівки додано акцій: "+added+". Перевірте ціни.":"Нічого не розпізнано")
+ }catch(e){g("toast").hidden=true;showErr("Листівка: "+((e&&e.message)||"помилка"))}
+ flyBusy=0}
+
+/* ---- події ---- */
+document.addEventListener("click",async function(ev){
+ var t=ev.target;if(!t||!t.closest)return;var el;
+ if(el=t.closest("[data-skv]")){view=el.dataset.skv;try{localStorage.setItem(VW,view)}catch(e){}render();if(view==="acc")info();return}
+ if(t.closest("#skpull")){pull(1);return}
+ if(el=t.closest("tr[data-iid]")){openItem(el.dataset.iid);return}
+ if(t.closest("#skadd")){openItem("");return}
+ if(t.closest("#skpub")||t.closest("#skpub2")){pubNow();return}
+ if(t.closest("#skimpgo")){importList();return}
+ if(t.closest("#sk-save")){saveItem();return}
+ if(t.closest("#sk-close")){dlg().close();return}
+ if(t.closest("#sk-del")){delItem();return}
+ if(el=t.closest("[data-mdel]")){mdel(el.dataset.mdel);return}
+ if(el=t.closest("[data-bind]")){var s=document.querySelector('[data-bsel="'+el.dataset.bind+'"]');if(!s||!s.value){toast("Оберіть товар у списку");return}resolve(el.dataset.bind,s.value);return}
+ if(el=t.closest("[data-mk]")){mkItem(el.dataset.mk);return}
+ if(el=t.closest("[data-ign]")){if(await ask("Прибрати цей запис без зарахування?"))ignore(el.dataset.ign);return}
+ if(t.closest("#skcopy")){var u=srv()+"/scan";try{await navigator.clipboard.writeText(u);toast("Посилання скопійовано")}catch(e){showErr(u)}return}
+ if(t.closest("#skshare")){var u2=srv()+"/scan";if(navigator.share){navigator.share({title:"Склад: сканер",url:u2}).catch(function(){})}else{try{await navigator.clipboard.writeText(u2);toast("Посилання скопійовано")}catch(e){showErr(u2)}}return}
+ if(t.closest("#skcodego")){var c=g("skcode").value.trim();if(!/^[A-Za-z0-9]{4,20}$/.test(c)){showErr("Код: 4–20 латинських літер або цифр (перемкніть клавіатуру на англійську).");return}
+  api("/api/skx/pin",{code:c}).then(function(){try{localStorage.setItem(SCODE,c)}catch(e){}toast("Код для персоналу збережено");info()}).catch(function(e){showErr("Код: "+((e&&e.message)||"помилка"))});return}
+ if(t.closest("#skcodeoff")){if(await ask("Вимкнути доступ персоналу до сканера? Зайти зможе лише адміністратор із паролем.")){api("/api/skx/pin",{clear:true}).then(function(){try{localStorage.removeItem(SCODE)}catch(e){}toast("Доступ персоналу вимкнено");info()}).catch(function(e){showErr("Код: "+((e&&e.message)||"помилка"))})}return}
+ if(t.closest("#pradd")){prAdd();return}
+ if(el=t.closest("[data-prdel]")){var id=el.dataset.prdel,o=DOCS[id];if(o){DOCS[id]=Object.assign({},o,{del:1});persist(id,DOCS[id]);renderPr()}return}
+ if(t.closest("#prchadd")){var nm=g("prchn").value.trim(),url=g("prchu").value.trim();if(!nm||!/^https?:\/\//i.test(url)){showErr("Вкажіть назву й адресу сайту, що починається з https://");return}var c0=DOCS["pr:cfg"]||{chains:[]};var cfg={chains:(c0.chains||[]).concat([{n:nm.slice(0,40),u:url.slice(0,200)}])};DOCS["pr:cfg"]=cfg;persist("pr:cfg",cfg);renderPr();return}
+ if(el=t.closest("[data-chdel]")){var c1=DOCS["pr:cfg"];if(c1){var cfg2={chains:(c1.chains||[]).filter(function(c){return c.n!==el.dataset.chdel})};DOCS["pr:cfg"]=cfg2;persist("pr:cfg",cfg2);renderPr()}return}
+});
+document.addEventListener("input",function(e){if(e.target&&e.target.id==="skq")render()});
+document.addEventListener("change",function(e){var t=e.target;if(!t)return;
+ if(t.id==="skm")render();else if(t.id==="prold")renderPr();else if(t.id==="prfly"&&t.files.length){flyer(Array.prototype.slice.call(t.files));t.value=""}});
+document.addEventListener("keydown",function(e){if(e.key==="Enter"&&e.target&&(e.target.id==="prp"||e.target.id==="prq")){e.preventDefault();prAdd()}});
+var _ra=renderAll;renderAll=function(){_ra();render()};
+var _st=showTab;showTab=function(t){_st(t);if(t==="sk"){render();pull(0);info()}else if(t==="pr")renderPr()};
+setTimeout(function(){nav();if(tok())pull(0);if(localStorage.getItem(PUBK)&&tok())pubNow()},7000);
+document.addEventListener("visibilitychange",function(){if(!document.hidden&&tabNow()==="sk")pull(0)});
+setInterval(function(){if(!document.hidden&&tabNow()==="sk")pull(0)},300000);
+render();
+})();
 </script>
 </body>
 </html>
