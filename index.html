@@ -596,18 +596,27 @@ function vBal(){
   return '<tr data-iid="'+E(r.it.id)+'"><td>'+(warn?"⚠ ":"")+E(r.it.n)+'</td><td>'+(r.last?fm(r.last.q)+" "+E(r.it.u)+'<br><small class="sub">'+dm(r.last.d)+'</small>':"—")+'</td><td>'+((r.after+r.slAfter)?fm(r.after+r.slAfter)+" "+E(r.it.u):"—")+'</td><td'+(warn?' class="e"':"")+'><b>'+(r.calc!=null?fm(r.calc)+" "+E(r.it.u):"—")+'</b></td><td>'+(r.it.min>0?fm(r.it.min)+" "+E(r.it.u):"—")+'</td></tr>'}).join("")+'</tbody></table></div>';
  h+='<p class="sub">«Розрахунково» = останній підрахунок плюс прихід мінус брак і продажі (списання за техкартами) після нього. Натисніть на рядок, щоб відкрити картку товару з історією.</p>';
  return h}
+var WP=localStorage.getItem("latte-sk-wp")||"m";
+function monday(d){var x=new Date(d+"T12:00:00");x.setDate(x.getDate()-((x.getDay()+6)%7));return x.toLocaleDateString("sv")}
+function pkey(d,p){return p==="w"?monday(d):p==="y"?d.slice(0,4):d.slice(0,7)}
+function pprev(k,p){if(p==="y")return String(+k-1);if(p==="m"){var y=+k.slice(0,4),m=+k.slice(5,7)-1;if(m<1){m=12;y--}return y+"-"+(m<10?"0":"")+m}var x=new Date(k+"T12:00:00");x.setDate(x.getDate()-7);return x.toLocaleDateString("sv")}
+function plab(k,p){if(p==="y")return k+" рік";if(p==="m"){var n=["січень","лютий","березень","квітень","травень","червень","липень","серпень","вересень","жовтень","листопад","грудень"];return n[+k.slice(5,7)-1]+" "+k.slice(0,4)}var x=new Date(k+"T12:00:00");x.setDate(x.getDate()+6);return dm(k)+" – "+dm(x.toLocaleDateString("sv"))}
+function woData(k,p){var by={},rs={},tot=0,q=0,rows=[];
+ moves().forEach(function(m){if(m.k!=="wo"||pkey(m.d,p)!==k)return;var i=itemById(m.i),c=m.q*(i&&i.p||0);rows.push(m);tot+=c;var o=by[m.i]||(by[m.i]={id:m.i,n:inm(m.i),u:inu(m.i),q:0,c:0,k:0});o.q+=m.q;o.c+=c;o.k++;rs[m.r||"інше"]=(rs[m.r||"інше"]||0)+c});
+ rows.sort(function(a,b){return b.ts-a.ts});return{by:Object.keys(by).map(function(x){return by[x]}).sort(function(a,b){return b.c-a.c||b.q-a.q}),rs:rs,tot:tot,rows:rows}}
 function vWo(){
- var ym=(g("skm")&&g("skm").value)||today().slice(0,7),mv=moves().filter(function(m){return m.k==="wo"&&m.d.slice(0,7)===ym}).sort(function(a,b){return b.ts-a.ts});
- var mons={};moves().forEach(function(m){if(m.k==="wo")mons[m.d.slice(0,7)]=1});mons[today().slice(0,7)]=1;
- var ml=Object.keys(mons).sort().reverse(),tot=0,by={};
- mv.forEach(function(m){var i=itemById(m.i),c=m.q*(i&&i.p||0);tot+=c;by[m.r||"інше"]=(by[m.r||"інше"]||0)+c});
- var h='<div class="row"><label>Місяць <select id="skm">'+ml.map(function(x){return '<option'+(x===ym?" selected":"")+'>'+x+'</option>'}).join("")+'</select></label><b class="e" style="margin-left:auto">Вартість браку: '+mny(tot)+'</b></div>';
- var rs=Object.keys(by).filter(function(k){return by[k]>0});if(rs.length)h+='<p class="sub">'+rs.map(function(k){return E(k)+": "+mny(by[k])}).join(" · ")+'</p>';
- if(!mv.length)return h+'<div class="note">За цей місяць браку не записано.</div>';
- h+='<div class="tw"><table><thead><tr><th>Коли</th><th>Товар</th><th>Кількість</th><th>Причина</th><th>Хто</th><th>Сума</th><th></th></tr></thead><tbody>'+mv.map(function(m){var i=itemById(m.i);
-  return '<tr><td>'+dm(m.d)+' '+kt(m.ts)+'</td><td>'+E(inm(m.i))+'</td><td>'+fm(m.q)+" "+E(inu(m.i))+'</td><td>'+E(m.r)+'</td><td>'+E(m.w)+'</td><td>'+(i&&i.p?mny(m.q*i.p):"—")+'</td><td><button class="b g" data-mdel="'+E(m.id)+'" aria-label="Видалити запис">✕</button></td></tr>'}).join("")+'</tbody></table></div>';
- h+='<p class="sub">Вартість рахується за ціною, яку ви вказали в картці товару. Без ціни сума «—».</p>';
+ var cur=pkey(today(),WP),keys={};keys[cur]=1;moves().forEach(function(m){if(m.k==="wo")keys[pkey(m.d,WP)]=1});
+ var kl=Object.keys(keys).sort().reverse(),sel=g("skm")&&kl.indexOf(g("skm").value)>-1?g("skm").value:cur,D=woData(sel,WP),P=woData(pprev(sel,WP),WP);
+ var h='<div class="row"><div class="row" style="gap:4px">'+[["w","Тиждень"],["m","Місяць"],["y","Рік"]].map(function(x){return '<button class="b '+(WP===x[0]?"":"g")+'" data-skp="'+x[0]+'">'+x[1]+'</button>'}).join("")+'</div><label>Період <select id="skm">'+kl.map(function(x){return '<option value="'+x+'"'+(x===sel?" selected":"")+'>'+E(plab(x,WP))+'</option>'}).join("")+'</select></label><button class="b g" id="skwcsv" style="margin-left:auto">Експорт CSV</button></div>';
+ var diff=D.tot-P.tot;
+ h+='<div class="cards"><div class="c"><small>Вартість браку</small><b class="e">'+mny(D.tot)+'</b></div><div class="c"><small>Записів</small><b>'+D.rows.length+'</b></div><div class="c"><small>Попередній період</small><b>'+mny(P.tot)+'</b><small>'+(P.tot>0||D.tot>0?(diff>0?"+":"")+mny(diff):"")+'</small></div></div>';
+ var rk=Object.keys(D.rs).filter(function(k){return D.rs[k]>0});if(rk.length)h+='<p class="sub">За причинами: '+rk.map(function(k){return E(k)+" "+mny(D.rs[k])}).join(" · ")+'</p>';
+ if(!D.rows.length)return h+'<div class="note">За цей період браку не записано.</div>';
+ h+='<h2>За позиціями</h2><div class="tw"><table><thead><tr><th>Товар</th><th>Кількість</th><th>Записів</th><th>Сума</th></tr></thead><tbody>'+D.by.map(function(o){return '<tr data-iid="'+E(o.id)+'"><td>'+E(o.n)+'</td><td>'+fm(o.q)+" "+E(o.u)+'</td><td>'+o.k+'</td><td>'+(o.c>0?mny(o.c):"—")+'</td></tr>'}).join("")+'</tbody></table></div>';
+ h+='<h2>Усі записи</h2><div class="tw"><table><thead><tr><th>Коли</th><th>Товар</th><th>Кількість</th><th>Причина</th><th>Хто</th><th>Сума</th><th></th></tr></thead><tbody>'+D.rows.map(function(m){var i=itemById(m.i);return '<tr><td>'+dm(m.d)+' '+kt(m.ts)+'</td><td>'+E(inm(m.i))+'</td><td>'+fm(m.q)+" "+E(inu(m.i))+'</td><td>'+E(m.r)+'</td><td>'+E(m.w)+'</td><td>'+(i&&i.p?mny(m.q*i.p):"—")+'</td><td><button class="b g" data-mdel="'+E(m.id)+'" aria-label="Видалити запис">✕</button></td></tr>'}).join("")+'</tbody></table></div><p class="sub">Сума = кількість × поточна ціна товару в картці. Без ціни «—». Тиждень починається з понеділка.</p>';
  return h}
+function woCsv(){var k=g("skm").value,D=woData(k,WP),r=[["Дата","Час","Товар","Кількість","Одиниця","Причина","Хто","Сума"]];D.rows.slice().sort(function(a,b){return a.ts-b.ts}).forEach(function(m){var i=itemById(m.i);r.push([m.d,kt(m.ts),inm(m.i),String(m.q).replace(".",","),inu(m.i),m.r||"",m.w||"",i&&i.p?String(Math.round(m.q*i.p*100)/100).replace(".",","):""])});
+ save("brak-"+k+".csv","﻿"+r.map(function(l){return l.map(function(c){return '"'+String(c==null?"":c).replace(/"/g,'""')+'"'}).join(";")}).join("\r\n"))}
 function vCt(){
  var by=calc(),rows=[];Object.keys(by).forEach(function(k){by[k].diffs.forEach(function(d){rows.push({it:by[k].it,d:d})})});
  var oi=moves().filter(function(m){return m.k==="ct"&&!itemById(m.i)});oi.forEach(function(m){rows.push({it:{id:m.i,n:"(видалений товар)",u:"",p:0},d:{m:m,exp:null,diff:null}})});
@@ -923,6 +932,8 @@ document.addEventListener("click",async function(ev){
  if(t.closest("#skadd")){openItem("");return}
  if(t.closest("#skpub")||t.closest("#skpub2")){pubNow();return}
  if(t.closest("#skimpgo")){importList();return}
+ if(el=t.closest("[data-skp]")){WP=el.dataset.skp;try{localStorage.setItem("latte-sk-wp",WP)}catch(e){}if(g("skm"))g("skm").value="";render();return}
+ if(t.closest("#skwcsv")){woCsv();return}
  if(t.closest("#skiadd")){inAdd();return}
  if(t.closest("#tcadd")){openTc("");return}
  if(el=t.closest("tr[data-tid]")){openTc(el.dataset.tid);return}
