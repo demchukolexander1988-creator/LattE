@@ -547,14 +547,14 @@ function bcOwner(code,except){var n=nz(code),its=items();for(var i=0;i<its.lengt
 /* ---- розрахунки ---- */
 function calc(){
  var its=items(),mv=moves(),by={},now=Date.now(),d30=now-30*864e5;
- its.forEach(function(i){by[i.id]={it:i,ct:[],wo:[],wo30:0,wo30c:0}});
- mv.forEach(function(m){var r=by[m.i];if(!r)return;(m.k==="ct"?r.ct:r.wo).push(m)});
+ its.forEach(function(i){by[i.id]={it:i,ct:[],wo:[],inn:[],wo30:0,wo30c:0}});
+ mv.forEach(function(m){var r=by[m.i];if(!r)return;(m.k==="ct"?r.ct:m.k==="in"?r.inn:r.wo).push(m)});
  its.forEach(function(i){var r=by[i.id];r.ct.sort(function(a,b){return a.ts-b.ts});r.wo.sort(function(a,b){return a.ts-b.ts});
-  r.last=r.ct.length?r.ct[r.ct.length-1]:null;r.after=0;
+  r.last=r.ct.length?r.ct[r.ct.length-1]:null;r.after=0;r.inAfter=0;r.inn.forEach(function(m){if(r.last&&m.ts>r.last.ts)r.inAfter+=m.q});
   r.wo.forEach(function(m){if(r.last&&m.ts>r.last.ts)r.after+=m.q;if(m.ts>=d30){r.wo30+=m.q;r.wo30c+=m.q*(i.p||0)}});
-  r.calc=r.last?r.last.q-r.after:null;
+  r.calc=r.last?r.last.q+r.inAfter-r.after:null;
   r.diffs=[];for(var k=0;k<r.ct.length;k++){var c=r.ct[k],p=k?r.ct[k-1]:null;if(!p){r.diffs.push({m:c,exp:null,diff:null});continue}
-   var w=0;r.wo.forEach(function(x){if(x.ts>p.ts&&x.ts<=c.ts)w+=x.q});var exp=p.q-w;r.diffs.push({m:c,exp:exp,diff:c.q-exp})}});
+   var w=0;r.wo.forEach(function(x){if(x.ts>p.ts&&x.ts<=c.ts)w+=x.q});r.inn.forEach(function(x){if(x.ts>p.ts&&x.ts<=c.ts)w-=x.q});var exp=p.q-w;r.diffs.push({m:c,exp:exp,diff:c.q-exp})}});
  return by}
 
 /* ---- синхронізація ---- */
@@ -583,7 +583,7 @@ function pubLater(){try{localStorage.setItem(PUBK,"1")}catch(e){}clearTimeout(pu
 function info(){if(!tok())return;api("/api/skx/info").then(function(j){SRV=j;if(view==="acc")render()}).catch(function(){})}
 
 /* ---- відображення ---- */
-function seg(){var V=[["bal","Залишки"],["wo","Брак"],["ct","Підрахунки"],["its","Товари"],["new","Нові коди"+(pend().length?" ("+pend().length+")":"")],["acc","Доступ"]];
+function seg(){var V=[["bal","Залишки"],["in","Прихід"],["wo","Брак"],["ct","Підрахунки"],["its","Товари"],["new","Нові коди"+(pend().length?" ("+pend().length+")":"")],["acc","Доступ"]];
  return '<div class="row" style="gap:4px;overflow-x:auto;flex-wrap:nowrap">'+V.map(function(v){return '<button class="b '+(view===v[0]?"":"g")+'" data-skv="'+v[0]+'" style="white-space:nowrap">'+v[1]+'</button>'}).join("")+'<button class="b g" id="skpull" style="margin-left:auto;white-space:nowrap">🔄 Оновити</button></div>'}
 function vBal(){
  var by=calc(),q=(g("skq")&&g("skq").value)||"",ls=Object.keys(by).map(function(k){return by[k]}).filter(function(r){return !q||r.it.n.toLowerCase().indexOf(q.toLowerCase())>-1});
@@ -594,7 +594,7 @@ function vBal(){
  h+='<div class="tw"><table><thead><tr><th>Товар</th><th>Останній підрахунок</th><th>Брак після</th><th>Розрахунково</th><th>Мінімум</th></tr></thead><tbody>'+ls.map(function(r){
   var warn=r.it.min>0&&r.calc!=null&&r.calc<r.it.min;
   return '<tr data-iid="'+E(r.it.id)+'"><td>'+(warn?"⚠ ":"")+E(r.it.n)+'</td><td>'+(r.last?fm(r.last.q)+" "+E(r.it.u)+'<br><small class="sub">'+dm(r.last.d)+'</small>':"—")+'</td><td>'+(r.after?fm(r.after)+" "+E(r.it.u):"—")+'</td><td'+(warn?' class="e"':"")+'><b>'+(r.calc!=null?fm(r.calc)+" "+E(r.it.u):"—")+'</b></td><td>'+(r.it.min>0?fm(r.it.min)+" "+E(r.it.u):"—")+'</td></tr>'}).join("")+'</tbody></table></div>';
- h+='<p class="sub">«Розрахунково» = останній підрахунок мінус брак після нього. Прихід і продажі поки не враховуються: вони з’являться на наступних етапах. Натисніть на рядок, щоб відкрити картку товару з історією.</p>';
+ h+='<p class="sub">«Розрахунково» = останній підрахунок плюс прихід мінус брак після нього. Продажі поки не враховуються (наступний етап: імпорт звіту каси). Натисніть на рядок, щоб відкрити картку товару з історією.</p>';
  return h}
 function vWo(){
  var ym=(g("skm")&&g("skm").value)||today().slice(0,7),mv=moves().filter(function(m){return m.k==="wo"&&m.d.slice(0,7)===ym}).sort(function(a,b){return b.ts-a.ts});
@@ -614,7 +614,7 @@ function vCt(){
  rows.sort(function(a,b){return b.d.m.ts-a.d.m.ts});rows=rows.slice(0,200);
  if(!rows.length)return '<div class="note">Підрахунків ще немає. Персонал або ви вносите їх на сторінці сканера (розділ «Доступ»).</div>';
  var loss=0;rows.forEach(function(r){if(r.d.diff!=null&&r.d.diff<0)loss+=-r.d.diff*(r.it.p||0)});
- var h='<p class="sub">Різниця = факт мінус очікуване (попередній підрахунок мінус брак між підрахунками). Недостачі в списку на суму '+mny(loss)+'.</p>';
+ var h='<p class="sub">Різниця = факт мінус очікуване (попередній підрахунок плюс прихід мінус брак між підрахунками). Недостачі в списку на суму '+mny(loss)+'.</p>';
  h+='<div class="tw"><table><thead><tr><th>Коли</th><th>Товар</th><th>Факт</th><th>Очікувалось</th><th>Різниця</th><th>Хто</th><th></th></tr></thead><tbody>'+rows.map(function(r){var m=r.d.m;
   return '<tr><td>'+dm(m.d)+' '+kt(m.ts)+'</td><td>'+E(r.it.n)+'</td><td>'+fm(m.q)+" "+E(r.it.u)+'</td><td>'+(r.d.exp!=null?fm(r.d.exp)+" "+E(r.it.u):"—")+'</td><td'+(r.d.diff!=null&&r.d.diff<0?' class="e"':"")+'>'+(r.d.diff!=null?(r.d.diff>0?"+":"")+fm(r.d.diff)+" "+E(r.it.u):"перший")+'</td><td>'+E(m.w)+'</td><td><button class="b g" data-mdel="'+E(m.id)+'" aria-label="Видалити запис">✕</button></td></tr>'}).join("")+'</tbody></table></div>';
  return h}
@@ -642,7 +642,24 @@ function vAcc(){
  h+='<h2>Як користуватись</h2><ul><li>Відкрийте посилання на телефоні й додайте на головний екран.</li><li>Оберіть «Брак» або «Інвентаризація», відскануйте штрихкод камерою (кнопка 📷) або введіть код чи назву вручну.</li><li>USB- або Bluetooth-сканер теж підходить: клацніть у поле й скануйте, він друкує код і натискає Enter.</li><li>Немає товару в каталозі: персонал надсилає назву й кількість, у вас з’являється «Нові коди».</li><li>Без інтернету записи чекають у черзі й відправляються самі.</li></ul>';
  h+='<p class="sub">Камера працює в Chrome на Android без додаткових бібліотек. На iPhone сканер підвантажує невелику бібліотеку з Інтернету.</p>';
  return h}
-var vmap={bal:vBal,wo:vWo,ct:vCt,its:vIts,"new":vNew,acc:vAcc};
+function vIn(){
+ var ym=(g("skim")&&g("skim").value)||today().slice(0,7),mv=moves().filter(function(m){return m.k==="in"&&m.d.slice(0,7)===ym}).sort(function(a,b){return b.ts-a.ts});
+ var mons={};moves().forEach(function(m){if(m.k==="in")mons[m.d.slice(0,7)]=1});mons[today().slice(0,7)]=1;
+ var ml=Object.keys(mons).sort().reverse(),tot=0;mv.forEach(function(m){tot+=m.q*(m.p||0)});
+ if(!items().length)return '<div class="note">Спершу додайте товари у «Товари».</div>';
+ var h='<h2 style="margin-top:0">Прийняти товар</h2><div class="row"><input id="skin" list="skidl" placeholder="Товар" style="flex:2;min-width:12em" autocomplete="off"><datalist id="skidl">'+items().map(function(i){return '<option value="'+E(i.n)+'">'}).join("")+'</datalist><input id="skiq" inputmode="decimal" placeholder="Кількість" style="width:7em"><input id="skip" inputmode="decimal" placeholder="Ціна за од., '+E(CFG.cur)+'" style="width:9em"></div>';
+ h+='<div class="row"><input id="skiv" placeholder="Постачальник" style="flex:1;min-width:10em"><input id="skid" type="date" value="'+today()+'"><button class="b" id="skiadd">Записати прихід</button></div><p class="sub">Якщо вказати ціну, вона стане ціною товару в картці (для вартості браку й порівняння з акціями). Витрату в «Витратах» це не створює: вносьте її як зазвичай, щоб не було дубля.</p>';
+ h+='<div class="row"><label>Місяць <select id="skim">'+ml.map(function(x){return '<option'+(x===ym?" selected":"")+'>'+x+'</option>'}).join("")+'</select></label><b style="margin-left:auto">Прийнято на суму: '+mny(tot)+'</b></div>';
+ if(!mv.length)return h+'<div class="note">За цей місяць приходів немає.</div>';
+ return h+'<div class="tw"><table><thead><tr><th>Дата</th><th>Товар</th><th>Кількість</th><th>Ціна</th><th>Сума</th><th>Постачальник</th><th></th></tr></thead><tbody>'+mv.map(function(m){return '<tr><td>'+dm(m.d)+'</td><td>'+E(inm(m.i))+'</td><td>'+fm(m.q)+" "+E(inu(m.i))+'</td><td>'+(m.p?mny(m.p):"—")+'</td><td>'+(m.p?mny(m.q*m.p):"—")+'</td><td>'+E(m.v||"")+'</td><td><button class="b g" data-mdel="'+E(m.id)+'" aria-label="Видалити запис">✕</button></td></tr>'}).join("")+'</tbody></table></div>'}
+function inAdd(){
+ var n=g("skin").value.trim().toLowerCase(),it=items().filter(function(i){return i.n.toLowerCase()===n})[0],q=num(g("skiq").value),p=g("skip").value.trim()===""?0:num(g("skip").value);
+ if(!it){g("skin").focus();toast("Оберіть товар зі списку");return}if(!(q>0)){g("skiq").focus();return}if(!(p>=0)){g("skip").focus();return}
+ var d=g("skid").value||today(),ts=Date.now(),id="sk:m:in"+ts.toString(36)+Math.random().toString(36).slice(2,5),ids=[id];
+ DOCS[id]={k:"in",i:it.id,q:Math.round(q*1000)/1000,p:p,v:g("skiv").value.trim().slice(0,40),w:"",r:"",ts:d===today()?ts:new Date(d+"T12:00:00").getTime(),d:d};
+ if(p>0){DOCS["sk:i:"+it.id]=Object.assign({},DOCS["sk:i:"+it.id],{p:p});ids.push("sk:i:"+it.id)}
+ saveMany(ids);render();toast("Прихід записано: "+it.n)}
+var vmap={bal:vBal,in:vIn,wo:vWo,ct:vCt,its:vIts,"new":vNew,acc:vAcc};
 function render(){
  nav();var el=g("sk");if(!el||el.hidden&&tabNow()!=="sk"){renderPr();return}
  var keep=(view==="bal"&&g("skq")&&document.activeElement===g("skq"))?g("skq").selectionStart:-1;
@@ -662,8 +679,8 @@ function openItem(id){
  h+='<label>Штрихкоди (по одному в рядку; сканер USB додає рядок сам)<textarea id="sk-bc" style="min-height:70px" autocomplete="off" autocapitalize="off" spellcheck="false">'+E((it.bc||[]).join("\n"))+'</textarea></label>';
  if(by){
   h+='<h2>Історія</h2><div class="cards"><div class="c"><small>Останній підрахунок</small><b>'+(by.last?fm(by.last.q)+" "+E(it.u):"—")+'</b></div><div class="c"><small>Розрахунково</small><b>'+(by.calc!=null?fm(by.calc)+" "+E(it.u):"—")+'</b></div><div class="c"><small>Брак за 30 днів</small><b class="e">'+fm(by.wo30)+" "+E(it.u)+'</b>'+(it.p>0?'<small>'+mny(by.wo30c)+'</small>':"")+'</div></div>';
-  var hist=by.ct.concat(by.wo).sort(function(a,b){return b.ts-a.ts}).slice(0,30);
-  h+=hist.length?'<div class="tw"><table><tbody>'+hist.map(function(m){return '<tr><td>'+dm(m.d)+' '+kt(m.ts)+'</td><td>'+(m.k==="ct"?"підрахунок":"брак")+'</td><td>'+fm(m.q)+" "+E(it.u)+'</td><td>'+E(m.r||"")+'</td><td>'+E(m.w)+'</td></tr>'}).join("")+'</tbody></table></div>':'<p class="sub">Записів ще немає.</p>'}
+  var hist=by.ct.concat(by.wo,by.inn).sort(function(a,b){return b.ts-a.ts}).slice(0,30);
+  h+=hist.length?'<div class="tw"><table><tbody>'+hist.map(function(m){return '<tr><td>'+dm(m.d)+' '+kt(m.ts)+'</td><td>'+(m.k==="ct"?"підрахунок":m.k==="in"?"прихід":"брак")+'</td><td>'+fm(m.q)+" "+E(it.u)+'</td><td>'+E(m.r||"")+'</td><td>'+E(m.w)+'</td></tr>'}).join("")+'</tbody></table></div>':'<p class="sub">Записів ще немає.</p>'}
  h+='<div class="row" style="margin-top:12px"><button class="b" id="sk-save">Зберегти</button><button class="b g" id="sk-close">Закрити</button>'+(id?'<button class="b g e" id="sk-del" style="margin-left:auto">Видалити товар</button>':"")+'</div>';
  d.innerHTML=h;d.dataset.iid=id||"";d.showModal();setTimeout(function(){g(id?"sk-min":"sk-n").focus()},50)}
 function saveItem(){
@@ -768,6 +785,7 @@ document.addEventListener("click",async function(ev){
  if(t.closest("#skadd")){openItem("");return}
  if(t.closest("#skpub")||t.closest("#skpub2")){pubNow();return}
  if(t.closest("#skimpgo")){importList();return}
+ if(t.closest("#skiadd")){inAdd();return}
  if(t.closest("#sk-save")){saveItem();return}
  if(t.closest("#sk-close")){dlg().close();return}
  if(t.closest("#sk-del")){delItem();return}
@@ -787,7 +805,7 @@ document.addEventListener("click",async function(ev){
 });
 document.addEventListener("input",function(e){if(e.target&&e.target.id==="skq")render()});
 document.addEventListener("change",function(e){var t=e.target;if(!t)return;
- if(t.id==="skm")render();else if(t.id==="prold")renderPr();else if(t.id==="prfly"&&t.files.length){flyer(Array.prototype.slice.call(t.files));t.value=""}});
+ if(t.id==="skm"||t.id==="skim")render();else if(t.id==="prold")renderPr();else if(t.id==="prfly"&&t.files.length){flyer(Array.prototype.slice.call(t.files));t.value=""}});
 document.addEventListener("keydown",function(e){if(e.key==="Enter"&&e.target&&(e.target.id==="prp"||e.target.id==="prq")){e.preventDefault();prAdd()}});
 var _ra=renderAll;renderAll=function(){_ra();render()};
 var _st=showTab;showTab=function(t){_st(t);if(t==="sk"){render();pull(0);info()}else if(t==="pr")renderPr()};
