@@ -1057,6 +1057,74 @@ document.addEventListener("visibilitychange",function(){if(!document.hidden&&tab
 setInterval(function(){if(!document.hidden&&tabNow()==="sk")pull(0)},300000);
 var scEl=document.getElementById("scan");if(scEl)scEl.onchange=function(){if(this.files.length){var ff=Array.prototype.slice.call(this.files);this.value="";rcScan(ff)}};
 render();
+/* ---- v18: Сьогодні, місяць, перевірки, скасування ---- */
+var PMK=today().slice(0,7);
+function ym(k,dm2){var y=+k.slice(0,4),m=+k.slice(5)-1+dm2;var d=new Date(y,m,1);return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)}
+function monthSum(k){var r={i:0,e:0};all().forEach(function(x){if(x.d.slice(0,7)===k)r[x.t]+=x.a});return r}
+function dl2(v,o,bad){if(!(o>0))return"";var x=(v-o)/o*100;return '<small class="'+((x>0)===!bad?"i":"e")+'">'+(x>0?"+":"")+f(x)+"%</small>"}
+function todayBlock(){var el=$("ov");if(!el)return;var oc=el.querySelector(".cards");if(oc)oc.remove();
+ var t=today(),tl=all().filter(function(x){return x.d===t}),ti=0,te=0;tl.forEach(function(x){if(x.t==="i")ti+=x.a;else te+=x.a});
+ var by={};try{by=calc()}catch(e){}var low=[],neg=[];Object.keys(by).forEach(function(k){var r=by[k];if(r.calc==null)return;if(r.calc<0)neg.push(r);else if(r.it.min>0&&r.calc<r.it.min)low.push(r)});
+ var tk=[],nm=function(a){return a.slice(0,3).map(function(r){return r.it.n}).join(", ")+(a.length>3?"…":"")};
+ var bots=botRcs().length,nn=pend().length;
+ if(bots)tk.push(["rcb","📦 Чеків від бота: "+bots+". Прийняти на склад"]);
+ if(nn)tk.push(["new","🆕 Нових кодів зі сканера: "+nn]);
+ if(low.length)tk.push(["bal","⚠️ Нижче мінімуму ("+low.length+"): "+nm(low)]);
+ if(neg.length)tk.push(["bal","❗ Розрахунок у мінусі ("+neg.length+"): "+nm(neg)+". Перевірте приходи"]);
+ if(tcs().length){var yd=new Date(Date.now()-864e5).toLocaleDateString("sv");if(!moves().some(function(m){return m.k==="sl"&&m.d===yd}))tk.push(["sa","💳 Продажі за вчора ще не імпортовано"])}
+ var h='<div class="c" style="margin:8px 0"><div class="row"><b style="flex:1">Сьогодні, '+dm(t)+'</b><span class="sub">дохід <b class="i">'+money(ti)+'</b> · витрати <b class="e">'+money(te)+'</b></span></div>';
+ h+=tk.length?tk.map(function(x){return '<div class="row" style="margin:6px 0"><button class="b g" data-go="'+x[0]+'" style="text-align:left;flex:1">'+esc(x[1])+'</button></div>'}).join(""):'<div class="sub" style="margin:6px 0">✅ Склад у порядку, нових завдань немає.</div>';
+ h+='<div class="row"><button class="b g" data-go="wo">Брак</button><button class="b g" data-go="sa">Продажі</button><button class="b g" data-go="in">Прихід</button><button class="b g" data-go="ct">Підрахунок</button></div></div>';
+ var k=PMK,cur=k===today().slice(0,7),s=monthSum(k),p=monthSum(ym(k,-1)),yy=monthSum(ym(k,-12)),pr=s.i-s.e;
+ var d0=new Date(),dim=new Date(+k.slice(0,4),+k.slice(5),0).getDate(),dd=cur?d0.getDate():dim;
+ h+='<div class="c" style="margin:8px 0"><div class="row"><button class="b g" data-mpm="-1" aria-label="Попередній місяць">‹</button><b style="flex:1;text-align:center">Прибуток: '+MN[+k.slice(5)-1]+' '+k.slice(0,4)+'</b><button class="b g" data-mpm="1" aria-label="Наступний місяць"'+(cur?" disabled":"")+'>›</button></div>';
+ h+='<div class="cards" style="margin-top:8px"><div class="c"><small>Дохід</small><b class="i">'+money(s.i)+'</b>'+dl2(s.i,p.i)+'</div><div class="c"><small>Витрати</small><b class="e">'+money(s.e)+'</b>'+dl2(s.e,p.e,1)+'</div><div class="c"><small>Прибуток</small><b class="'+(pr<0?"e":"i")+'">'+money(pr)+'</b>'+dl2(pr,p.i-p.e)+'</div></div>';
+ h+='<p class="sub">Відсотки: порівняно з попереднім місяцем.'+(s.i>0?' Маржа: <b>'+f(pr/s.i*100)+'%</b>.':"")+(yy.i||yy.e?' Рік тому: дохід '+money(yy.i)+', прибуток '+money(yy.i-yy.e)+'.':"")+'</p>';
+ if(cur&&dd>=3&&(s.i||s.e)){var fi=s.i/dd*dim,fe=s.e/dd*dim;h+='<p class="sub">Прогноз до кінця місяця (за темпом перших '+dd+' днів): дохід '+money(fi)+', витрати '+money(fe)+', прибуток <b>'+money(fi-fe)+'</b>. Разові великі витрати прогноз спотворюють.</p>'}
+ var cs={},tot=0;all().forEach(function(x){if(x.t==="e"&&x.d.slice(0,7)===k){cs[x.c]=(cs[x.c]||0)+x.a;tot+=x.a}});var ck=Object.keys(cs).sort(function(a,b){return cs[b]-cs[a]}).slice(0,5);
+ if(ck.length){h+='<small class="sub">Найбільші витрати</small>'+ck.map(function(c){return '<div class="bar"><span>'+esc(c)+'</span><i style="width:'+Math.max(2,cs[c]/cs[ck[0]]*40)+'%;background:var(--exp)"></i><span>'+f(cs[c])+' ('+f(cs[c]/tot*100)+'%)</span></div>'}).join("")}
+ var wc=0;try{Object.keys(by).forEach(function(i){by[i].wo.forEach(function(m){if(new Date(m.ts).toLocaleDateString("sv").slice(0,7)===k)wc+=m.q*(by[i].it.p||0)})})}catch(e){}
+ if(wc>0)h+='<p class="sub">Брак за місяць за цінами складу: <b>'+money(wc)+'</b> (уже враховано у витратах лише якщо ви вносили його вручну).</p>';
+ h+='</div>';
+ el.insertAdjacentHTML("afterbegin",h)}
+var _ro=renderOv;renderOv=function(){_ro();try{todayBlock()}catch(e){}};
+document.addEventListener("click",function(e){var t=e.target&&e.target.closest?e.target:null;if(!t)return;var b=t.closest("[data-go]");
+ if(b){var v=b.dataset.go;view=v;try{localStorage.setItem(VW,v)}catch(x){}showTab("sk");render();if(v==="acc")info();return}
+ b=t.closest("[data-mpm]");if(b&&!b.disabled){var n=ym(PMK,+b.dataset.mpm);if(n<=today().slice(0,7)){PMK=n;renderOv()}}});
+/* перевірки перед збереженням */
+function askSave(q){var cok=$("cok"),old=cok.textContent;cok.textContent="Так, зберегти";return ask(q).then(function(r){cok.textContent=old;return r})}
+function med(a){a=a.slice().sort(function(x,y){return x-y});var n=a.length;return n%2?a[(n-1)/2]:(a[n/2-1]+a[n/2])/2}
+function txWarn(o,id){var w=[],t=today(),lim=new Date(Date.now()+864e5).toLocaleDateString("sv"),old=new Date(Date.now()-400*864e5).toLocaleDateString("sv");
+ if(o.d>lim)w.push("Дата "+dm(o.d)+" у майбутньому.");else if(o.d<old)w.push("Дата "+dm(o.d)+" дуже давня.");
+ if(o.a>=100000)w.push("Дуже велика сума: "+money(o.a)+".");
+ var since=new Date(Date.now()-120*864e5).toLocaleDateString("sv"),sm=all().filter(function(x){return x.id!==id&&x.t===o.t&&x.c===o.c&&x.d>=since&&x.d<=t}).map(function(x){return x.a});
+ if(sm.length>=5){var m=med(sm),mx=Math.max.apply(null,sm);if(o.a>4*m&&o.a>1.5*mx)w.push("Сума "+money(o.a)+" у кілька разів більша за звичайну для «"+o.c+"» (зазвичай близько "+money(m)+"). Перевірте, чи не зайвий нуль.")}
+ if(all().some(function(x){return x.id!==id&&x.t===o.t&&x.d===o.d&&x.c===o.c&&Math.abs(x.a-o.a)<0.01&&(x.v||"")===(o.v||"")}))w.push("Така сама операція (дата, сума, стаття, контрагент) уже є.");
+ return w}
+(function(){var _fs=$("fs").onclick;$("fs").onclick=async function(){var a=parseFloat($("fa").value.replace(/\s/g,"").replace(",","."));
+ if(a>0){var o={t:FT,d:$("fd").value||today(),a:Math.round(a*100)/100,c:$("fc").value,v:$("fv").value.trim()},w=txWarn(o,ED);if(w.length&&!await askSave(w.join("\n")+"\n\nЗберегти все одно?"))return}
+ _fs.call(this)}})();
+function rcWarn(){var w=[];RC.rows.forEach(function(r){if(!r.inc||!r.i||r.i==="+"||!(r.q>0))return;var it=itemById(r.i);if(!it)return;var p=r.sum/r.q;
+ if(it.p>0&&(p>2*it.p||p<it.p/2))w.push("«"+it.n+"»: ціна "+mny(p)+" за "+it.u+" замість звичайної "+mny(it.p)+".");
+ if(!convU(r.rq,r.ru,it.u).ok)w.push("«"+r.nm+"»: одиниці на чеку («"+r.ru+"») і в товарі («"+it.u+"») різні.")});return w}
+var _rap=rcApply;rcApply=async function(){rcGather();if(!RC.only){var w=rcWarn();if(w.length&&!await askSave(w.slice(0,6).join("\n")+"\n\nЗаписати прихід все одно?"))return}_rap()};
+/* скасування останньої дії */
+var SH={},ST=[],CUR=null,LU=0,BUSY=0,UT=0;
+function snap(){SH={};Object.keys(DOCS).forEach(function(k){try{SH[k]=JSON.stringify(DOCS[k])}catch(e){}})}snap();
+["click","keydown","change"].forEach(function(ev){document.addEventListener(ev,function(){LU=Date.now()},true)});
+function recU(id,o){if(BUSY)return;if(!CUR){CUR={ids:{},u:LU};setTimeout(closeU,0)}if(!(id in CUR.ids))CUR.ids[id]=SH[id];SH[id]=o===null||o===undefined?undefined:JSON.stringify(o)}
+function closeU(){var c=CUR;CUR=null;if(!c||Date.now()-c.u>4000)return;var ch=Object.keys(c.ids).filter(function(id){return c.ids[id]!==SH[id]});if(!ch.length)return;
+ var gone=ch.every(function(id){return SH[id]===undefined});ST.push(c.ids);if(ST.length>20)ST.shift();ubar((gone?"Видалено":"Збережено")+(ch.length>1?" ("+ch.length+" записів)":""))}
+var _per=persist;persist=function(id,o){recU(id,o);return _per(id,o)};
+var _sm=saveMany;saveMany=function(ids){ids.forEach(function(id){recU(id,DOCS[id])});return _sm(ids)};
+function ubar(t){var b=$("ubar");if(!b){b=document.createElement("div");b.id="ubar";b.style.cssText="position:fixed;left:50%;bottom:calc(64px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--card);color:var(--ink);border:1px solid var(--line);padding:8px 12px;border-radius:8px;z-index:9;max-width:92vw;display:flex;gap:10px;align-items:center";document.body.appendChild(b)}
+ b.innerHTML='<span></span><button class="b g" type="button" id="ubtn">↩ Скасувати</button>';b.firstChild.textContent=t+". ";b.hidden=false;clearTimeout(UT);UT=setTimeout(function(){b.hidden=true},9000)}
+function undoU(){var ids=ST.pop();if(!ids)return;BUSY=1;try{Object.keys(ids).forEach(function(id){var p=ids[id];if(p===undefined){delete DOCS[id];_per(id,null)}else{DOCS[id]=JSON.parse(p);_per(id,DOCS[id])}SH[id]=p})}finally{BUSY=0}
+ var b=$("ubar");if(b)b.hidden=true;renderAll();toast("Скасовано")}
+document.addEventListener("click",function(e){if(e.target&&e.target.id==="ubtn")undoU()});
+document.addEventListener("keydown",function(e){if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&(e.key==="z"||e.key==="я")){var t=e.target,tg=t&&t.tagName;if(tg==="INPUT"||tg==="TEXTAREA"||tg==="SELECT"||(t&&t.isContentEditable)||document.querySelector("dialog[open]"))return;if(ST.length){e.preventDefault();undoU()}}});
+var snT=0,_rall=renderAll;renderAll=function(){_rall();clearTimeout(snT);snT=setTimeout(function(){if(!CUR)snap()},3000)};
+try{renderOv()}catch(e){}
 })();
 </script>
 </body>
