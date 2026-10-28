@@ -558,7 +558,8 @@ function calc(){
  return by}
 
 /* ---- синхронізація ---- */
-function nav(){var n=pend().length,b=document.querySelector('#nav [data-t="sk"]');if(b)b.textContent="Склад"+(n?" ("+n+")":"")}
+function botRcs(){return Object.keys(DOCS).filter(function(k){return k.indexOf("sk:r:")===0&&DOCS[k]&&!DOCS[k].done&&!DOCS[k].del&&DOCS[k].li&&DOCS[k].li.length}).map(function(k){return Object.assign({id:k},DOCS[k])}).sort(function(a,b){return (b.ts||0)-(a.ts||0)})}
+function nav(){var n=pend().length+botRcs().length,b=document.querySelector('#nav [data-t="sk"]');if(b)b.textContent="Склад"+(n?" ("+n+")":"")}
 async function pull(manual){
  if(busy)return;if(!tok()){if(manual)toast("Спершу введіть токен у Налаштуваннях (розділ «QR-оплати»)");return}
  busy=1;try{
@@ -583,7 +584,7 @@ function pubLater(){try{localStorage.setItem(PUBK,"1")}catch(e){}clearTimeout(pu
 function info(){if(!tok())return;api("/api/skx/info").then(function(j){SRV=j;if(view==="acc")render()}).catch(function(){})}
 
 /* ---- відображення ---- */
-function seg(){var V=[["bal","Залишки"],["in","Прихід"],["tc","Техкарти"],["sa","Продажі"],["wo","Брак"],["ct","Підрахунки"],["its","Товари"],["new","Нові коди"+(pend().length?" ("+pend().length+")":"")],["acc","Доступ"]];
+function seg(){var V=[["bal","Залишки"],["in","Прихід"],["rcb","Чеки з бота"+(botRcs().length?" ("+botRcs().length+")":"")],["tc","Техкарти"],["sa","Продажі"],["wo","Брак"],["ct","Підрахунки"],["its","Товари"],["new","Нові коди"+(pend().length?" ("+pend().length+")":"")],["acc","Доступ"]];
  return '<div class="row" style="gap:4px;overflow-x:auto;flex-wrap:nowrap">'+V.map(function(v){return '<button class="b '+(view===v[0]?"":"g")+'" data-skv="'+v[0]+'" style="white-space:nowrap">'+v[1]+'</button>'}).join("")+'<button class="b g" id="skpull" style="margin-left:auto;white-space:nowrap">🔄 Оновити</button></div>'}
 function vBal(){
  var by=calc(),q=(g("skq")&&g("skq").value)||"",ls=Object.keys(by).map(function(k){return by[k]}).filter(function(r){return !q||r.it.n.toLowerCase().indexOf(q.toLowerCase())>-1});
@@ -822,19 +823,20 @@ function rcDraw(){
  var d=dlg(),rows=RC.rows;
  var h='<h2 style="margin-top:0">Чек або накладна: прихід</h2><p class="sub">Перевірте відповідність позицій вашим товарам, кількість і суму. Незнайдені можна пропустити або створити як новий товар.</p>';
  h+='<div class="row"><input id="rc-v" placeholder="Постачальник або магазин" value="'+E(RC.vendor)+'" style="flex:1;min-width:10em"><input id="rc-d" type="date" value="'+E(RC.date)+'"></div>';
- h+='<label class="sub"><input type="checkbox" id="rc-only"'+(RC.only?" checked":"")+'> Це не товари для складу: записати лише витрату</label>';
- if(RC.dup)h+='<p class="sub e">Схожа витрата (та сама дата й сума) уже є, можливо, її додав бот. Галочку «Записати суму у Витрати» знято, щоб не було дубля.</p>';
+ if(!RC.rid)h+='<label class="sub"><input type="checkbox" id="rc-only"'+(RC.only?" checked":"")+'> Це не товари для складу: записати лише витрату</label>';
+ if(RC.dup&&!RC.rid)h+='<p class="sub e">Схожа витрата (та сама дата й сума) уже є, можливо, її додав бот. Галочку «Записати суму у Витрати» знято, щоб не було дубля.</p>';
  h+=(RC.only?[]:rows).map(function(r,k){var it=r.i&&r.i!=="+"?itemById(r.i):null,u=it?it.u:(r.i==="+"?r.ru:""),cv=it?convU(r.rq,r.ru,it.u):{ok:true};
   var pu=r.q>0&&r.sum>=0?r.sum/r.q:0;
   return '<div class="c" style="margin:8px 0"><div class="row"><label><input type="checkbox" data-rcinc="'+k+'"'+(r.inc?" checked":"")+'> </label><b style="flex:1">'+E(r.nm)+'</b></div><div class="sub">На чеку: '+fm(r.rq)+" "+E(r.ru)+' · '+mny(r.sum)+'</div>'
   +'<div class="row"><select data-rci="'+k+'" style="flex:1;min-width:10em"><option value="">— пропустити —</option><option value="+"'+(r.i==="+"?" selected":"")+'>＋ створити новий товар</option>'+items().map(function(i){return '<option value="'+E(i.id)+'"'+(i.id===r.i?" selected":"")+'>'+E(i.n)+' ('+E(i.u)+')</option>'}).join("")+'</select></div>'
   +'<div class="row"><input data-rcq="'+k+'" inputmode="decimal" value="'+E(String(Math.round(r.q*1000)/1000).replace(".",","))+'" style="width:6.5em"><span>'+E(u)+'</span><input data-rcs="'+k+'" inputmode="decimal" value="'+E(String(r.sum).replace(".",","))+'" style="width:7em"><span>'+E(CFG.cur)+'</span><small class="sub">'+(pu>0?mny(pu)+" / "+E(u):"")+'</small></div>'
   +(it&&!cv.ok?'<div class="sub e">Одиниці різні («'+E(r.ru)+'» на чеку, «'+E(it.u)+'» у товарі): перевірте кількість.</div>':"")+'</div>'}).join("");
- h+='<label class="sub"><input type="checkbox" id="rc-ex"'+((RC.ex||RC.only)?" checked":"")+(RC.only?" disabled":"")+'> Записати суму чека у «Витрати»</label>';
- h+='<div class="row" id="rc-exr"'+((RC.ex||RC.only)?"":" hidden")+'><input id="rc-t" inputmode="decimal" value="'+E(String(RC.total).replace(".",","))+'" style="width:8em"><span>'+E(CFG.cur)+'</span><select id="rc-c" style="flex:1">'+CFG.ce.map(function(c){return '<option'+(c===RC.cat?" selected":"")+'>'+E(c)+'</option>'}).join("")+'</select></div><p class="sub">Один чек: одна витрата й прихід на склад. Не вмикайте суму у «Витрати», якщо цей чек уже внесено ботом чи вручну.</p>';
+ if(RC.rid)h+='<p class="sub">Витрату на '+mny(RC.total)+' уже записав бот, вдруге вона не створюється. Тут лише прихід на склад.</p>';else{h+='<label class="sub"><input type="checkbox" id="rc-ex"'+((RC.ex||RC.only)?" checked":"")+(RC.only?" disabled":"")+'> Записати суму чека у «Витрати»</label>';
+ h+='<div class="row" id="rc-exr"'+((RC.ex||RC.only)?"":" hidden")+'><input id="rc-t" inputmode="decimal" value="'+E(String(RC.total).replace(".",","))+'" style="width:8em"><span>'+E(CFG.cur)+'</span><select id="rc-c" style="flex:1">'+CFG.ce.map(function(c){return '<option'+(c===RC.cat?" selected":"")+'>'+E(c)+'</option>'}).join("")+'</select></div><p class="sub">Один чек: одна витрата й прихід на склад. Не вмикайте суму у «Витрати», якщо цей чек уже внесено ботом чи вручну.</p>'}
  h+='<div class="row"><button class="b" id="rc-ok">'+(RC.only?"Записати витрату":"Записати")+'</button><button class="b g" id="rc-x">Скасувати</button></div>';
  d.innerHTML=h;d.dataset.iid="";if(!d.open)d.showModal()}
 function rcGather(){
+ if(RC.rid){RC.vendor=g("rc-v").value;RC.date=g("rc-d").value||today();RC.only=false;RC.ex=false;RC.dup=false;RC.rows.forEach(function(r,k){var q=document.querySelector('[data-rcq="'+k+'"]'),sm=document.querySelector('[data-rcs="'+k+'"]'),ic=document.querySelector('[data-rcinc="'+k+'"]');if(q)r.q=num(q.value);if(sm)r.sum=num(sm.value);if(ic)r.inc=ic.checked});return}
  RC.vendor=g("rc-v").value;RC.date=g("rc-d").value||today();if(g("rc-only"))RC.only=g("rc-only").checked;RC.ex=RC.only?true:g("rc-ex").checked;RC.total=num(g("rc-t").value);RC.cat=g("rc-c").value;RC.dup=all().some(function(x){return x.t==="e"&&x.d===RC.date&&Math.abs((x.a||0)-RC.total)<=0.01});
  RC.rows.forEach(function(r,k){var q=document.querySelector('[data-rcq="'+k+'"]'),sm=document.querySelector('[data-rcs="'+k+'"]'),ic=document.querySelector('[data-rcinc="'+k+'"]');if(q)r.q=num(q.value);if(sm)r.sum=num(sm.value);if(ic)r.inc=ic.checked})}
 async function rcScan(files){
@@ -871,10 +873,18 @@ function rcApply(){
   var mid="sk:m:in"+ts0.toString(36)+k+Math.random().toString(36).slice(2,4);DOCS[mid]={k:"in",i:iid,q:Math.round(r.q*1000)/1000,p:p,v:String(RC.vendor||"").trim().slice(0,40),w:"",r:"",ts:ts+k,d:d};ids.push(mid);
   var ak=aliasKey(r.nm);if(ak.length>8){DOCS[ak]={i:iid};ids.push(ak)};n++});
  if(!n&&!(RC.ex&&RC.total>0)){toast("Нічого не вибрано: оберіть товар для позицій або вкажіть суму витрати");return}
+ if(RC.rid&&DOCS[RC.rid]){DOCS[RC.rid]=Object.assign({},DOCS[RC.rid],{done:1});ids.push(RC.rid)}
  saveMany(ids);
  if(RC.ex&&RC.total>0){var tid="t"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),ex={t:"e",d:d,a:Math.round(RC.total*100)/100,c:RC.cat,v:String(RC.vendor||"").trim().slice(0,40),m:CFG.pm[0],g:"",n:(n?"Склад: "+n+" поз. · ":"")+(RC.names||"").slice(0,80),s:1,ts:Date.now()};DOCS[tid]=ex;persist(tid,ex);renderAll()}
  var hadEx=RC.ex&&RC.total>0;dlg().close();RC=null;if(newIt)pubLater();render();toast((n?"Прихід записано: "+n+" поз."+(newIt?", нових товарів: "+newIt:""):"")+(n&&hadEx?" · ":"")+(hadEx?"витрату записано":"")||"Готово")}
-var vmap={tc:vTc,sa:vSa,bal:vBal,in:vIn,wo:vWo,ct:vCt,its:vIts,"new":vNew,acc:vAcc};
+function vRcb(){var ls=botRcs();
+ if(!ls.length)return '<div class="note">Нових чеків від бота немає. Коли ви надішлете фото чека боту, його товарні позиції з’являться тут: лишається один раз натиснути «Прийняти на склад».</div>';
+ return '<p class="sub">Чеки, які ви надіслали Telegram-боту. Витрату бот уже записав, тут лише приймаються товари на склад.</p>'+ls.map(function(r){return '<div class="c" style="margin:8px 0"><div class="row"><b style="flex:1">'+E(r.v||"Чек")+'</b><span>'+mny(r.a||0)+'</span></div><div class="sub">'+E(dm(r.d))+' · позицій: '+r.li.length+'</div><div class="sub">'+E(r.li.slice(0,4).map(function(x){return x.n}).join(", ")+(r.li.length>4?"…":"")).slice(0,160)+'</div><div class="row"><button class="b" data-rcb="'+E(r.id)+'">Прийняти на склад</button><button class="b g" data-rcbx="'+E(r.id)+'">Це не товари</button></div></div>'}).join("")}
+function rcbOpen(id){var r=DOCS[id];if(!r||!r.li)return;
+ var rows=r.li.map(function(x){var o={nm:String(x.n||"").slice(0,80),rq:x.q>0?x.q:1,ru:UN.indexOf(x.u)>-1?x.u:"шт",sum:x.s>=0?x.s:0,i:"",q:0,inc:true};o.i=matchItem(o.nm);o.q=rcQty(o);return o});
+ RC={vendor:r.v||"",date:r.d||today(),rows:rows,ex:false,dup:false,total:r.a||0,cat:"",names:"",only:false,rid:id};rcDraw()}
+function rcbSkip(id){var o=DOCS[id];if(!o)return;DOCS[id]=Object.assign({},o,{done:1});saveMany([id]);render();toast("Чек пропущено")}
+var vmap={rcb:vRcb,tc:vTc,sa:vSa,bal:vBal,in:vIn,wo:vWo,ct:vCt,its:vIts,"new":vNew,acc:vAcc};
 function render(){
  nav();var el=g("sk");if(!el||el.hidden&&tabNow()!=="sk"){renderPr();return}
  var keep=(view==="bal"&&g("skq")&&document.activeElement===g("skq"))?g("skq").selectionStart:-1;
@@ -995,6 +1005,8 @@ async function flyer(files){
 /* ---- події ---- */
 document.addEventListener("click",async function(ev){
  var t=ev.target;if(!t||!t.closest)return;var el;
+ if(el=t.closest("[data-rcb]")){rcbOpen(el.dataset.rcb);return}
+ if(el=t.closest("[data-rcbx]")){if(await ask("Пропустити цей чек? На склад він не потрапить."))rcbSkip(el.dataset.rcbx);return}
  if(el=t.closest("[data-skv]")){view=el.dataset.skv;try{localStorage.setItem(VW,view)}catch(e){}render();if(view==="acc")info();return}
  if(t.closest("#skpull")){pull(1);return}
  if(el=t.closest("tr[data-iid]")){openItem(el.dataset.iid);return}
