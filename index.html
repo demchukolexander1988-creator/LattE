@@ -676,7 +676,7 @@ function tcs(){return Object.keys(DOCS).filter(function(k){return k.indexOf("sk:
 function tcCost(t){var c=0,miss=0;(t.ing||[]).forEach(function(x){var i=itemById(x.i);if(!i||!(i.p>0))miss++;else c+=x.q*i.p});return{c:c,miss:miss}}
 function tcFind(name){var n=nrm(name),L=tcs();for(var k=0;k<L.length;k++){if(nrm(L[k].n)===n)return L[k];var al=String(L[k].al||"").split(";");for(var j=0;j<al.length;j++)if(al[j].trim()&&nrm(al[j])===n)return L[k]}return null}
 function vTc(){
- var L=tcs(),h='<div class="row"><button class="b" id="tcadd">+ Техкарта</button></div>';
+ var L=tcs(),h='<div class="row"><button class="b" id="tcadd">+ Техкарта</button> <button class="b" id="tcsync">⟳ З меню й Checkbox</button> <button class="b" id="tcpush">⬆ У Checkbox</button> <button class="b" id="tcgrp">▦ Групи в Checkbox</button></div>';
  h+='<p class="sub">Техкарта: з чого складається одна порція страви чи напою. Вона потрібна, щоб продаж з каси автоматично списував інгредієнти зі складу й показував собівартість.</p>';
  if(!L.length)return h+'<div class="note">Техкарт ще немає. Приклад: «Капучино» = кава зерно 0,018 кг + молоко 0,2 л + стаканчик 1 шт. Назва має збігатися з назвою в звіті каси (або додайте псевдонім у картці).</div>';
  return h+'<div class="tw"><table><thead><tr><th>Страва</th><th>Інгредієнтів</th><th>Собівартість</th><th>Ціна</th><th>Націнка</th></tr></thead><tbody>'+L.map(function(t){var c=tcCost(t),mg=t.pr>0&&c.c>0&&!c.miss?Math.round((t.pr-c.c)/t.pr*100):null;
@@ -736,6 +736,35 @@ function catParse(rows){
   var bc=C.b!=null?bcs(String(row[C.b]||"")).slice(0,3):[],p=C.p!=null?num(row[C.p]):NaN;
   out.push({n:nm,u:un,bc:bc,p:p>0?p:0})});
  return out}
+async function tcSync(){
+ try{toast("Завантажую меню й каталог…",0,1);var c=await api("/api/admin/catalog");
+  var have={},add=[],upd=[];tcs().forEach(function(t){have[nrm(t.n)]=t});
+  (c.items||[]).forEach(function(x){var k=nrm(x.n),p=Math.round(x.p)/100,t=have[k];
+   if(!k)return;if(!t){have[k]={n:x.n,pr:p,id:""};add.push(x)}else if(t.id&&p>0&&Math.abs((t.pr||0)-p)>0.001)upd.push({t:t,p:p})});
+  if(!add.length&&!upd.length){toast("Усе вже синхронізовано");return}
+  if(!await ask("Нових страв: "+add.length+(upd.length?", зміна ціни в існуючих: "+upd.length:"")+(c.live?"":" (каталог Checkbox узято зі збереженої копії)")+". Застосувати?"))return;
+  var ids=[];
+  add.forEach(function(x,i){var id="sk:t:"+nid()+i;DOCS[id]={n:x.n,al:"",pr:Math.round(x.p)/100,ing:[],ts:Date.now()};ids.push(id)});
+  upd.forEach(function(u){var id="sk:t:"+u.t.id;DOCS[id]=Object.assign({},DOCS[id],{pr:u.p,ts:Date.now()});ids.push(id)});
+  saveMany(ids);view="tc";render();toast("Додано: "+add.length+", оновлено цін: "+upd.length)
+ }catch(e){showErr("Синхронізація: "+((e&&e.message)||"помилка"))}}
+async function tcGroups(){
+ try{toast("Перевіряю групи в Checkbox…",0,1);var r=await api("/api/admin/catalog/groups",{apply:false});
+  if(!r.plan||!r.plan.length){toast("Усе вже згруповано");return}
+  var ex=r.plan.slice(0,8).map(function(x){return x.n+" → "+x.to}).join("\n");
+  if(!await ask("Перенести в групи "+r.plan.length+" позицій у Checkbox?\n"+ex+(r.plan.length>8?"\n…":"")))return;
+  toast("Переношу…",0,1);var d=await api("/api/admin/catalog/groups",{apply:true});
+  toast("Перенесено: "+(d.moved||0));
+  if(d.failed&&d.failed.length)showErr("Не вдалося:\n"+d.failed.join("\n"))
+ }catch(e){showErr("Групи Checkbox: "+((e&&e.message)||"помилка"))}}
+async function tcPush(){
+ try{if(!await ask("Додати в каталог Checkbox страви з щоденного й банкетного меню та ваші техкарти, яких там ще немає? Наявні позиції не змінюються."))return;
+  toast("Додаю в Checkbox…",0,1);
+  var extra=tcs().filter(function(t){return t.pr>0}).map(function(t){return{n:t.n,p:Math.round(t.pr*100)}});
+  var r=await api("/api/admin/catalog/push",{extra:extra});
+  toast("Checkbox: додано "+(r.added||0)+", пропущено "+(r.skipped||0));
+  if(r.failed&&r.failed.length)showErr("Не вдалося додати:\n"+r.failed.join("\n"))
+ }catch(e){showErr("Checkbox: "+((e&&e.message)||"помилка"))}}
 async function catImport(fl,asDish){
  try{var n=fl.name.toLowerCase(),rows;
   if(/\.(xlsx|xls)$/.test(n)){toast("Читаю таблицю…",0,1);if(!window.XLSX)await lib("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");var wb=XLSX.read(await fl.arrayBuffer(),{type:"array"});rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:""})}
@@ -1018,7 +1047,7 @@ document.addEventListener("click",async function(ev){
  if(t.closest("#rc-ok")){rcApply();return}
  if(t.closest("#rc-x")){dlg().close();RC=null;return}
  if(t.closest("#skiadd")){inAdd();return}
- if(t.closest("#tcadd")){openTc("");return}
+ if(t.closest("#tcadd")){openTc("");return}if(t.closest("#tcsync")){tcSync();return}if(t.closest("#tcpush")){tcPush();return}if(t.closest("#tcgrp")){tcGroups();return}
  if(el=t.closest("tr[data-tid]")){openTc(el.dataset.tid);return}
  if(t.closest("#tc-addi")){tcGather();TCW.ing.push({i:"",q:0});tcDraw();return}
  if(el=t.closest("[data-irdel]")){tcGather();TCW.ing.splice(+el.dataset.irdel,1);if(!TCW.ing.length)TCW.ing.push({i:"",q:0});tcDraw();return}
