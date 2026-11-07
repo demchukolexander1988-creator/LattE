@@ -905,7 +905,7 @@ function rcApply(){
  if(!n&&!(RC.ex&&RC.total>0)){toast("Нічого не вибрано: оберіть товар для позицій або вкажіть суму витрати");return}
  if(RC.rid&&DOCS[RC.rid]){DOCS[RC.rid]=Object.assign({},DOCS[RC.rid],{done:1});ids.push(RC.rid)}
  saveMany(ids);
- if(RC.ex&&RC.total>0){var tid="t"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),ex={t:"e",d:d,a:Math.round(RC.total*100)/100,c:RC.cat,v:String(RC.vendor||"").trim().slice(0,40),m:CFG.pm[0],g:"",n:(n?"Склад: "+n+" поз. · ":"")+(RC.names||"").slice(0,80),s:1,ts:Date.now()};DOCS[tid]=ex;persist(tid,ex);renderAll()}
+ if(RC.ex&&RC.total>0){var tid="t"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),ex={t:"e",d:d,a:Math.round(RC.total*100)/100,c:RC.cat,v:String(RC.vendor||"").trim().slice(0,40),m:(RC.eid&&typeof invPm==="function"?invPm():CFG.pm[0]),g:(RC.eid?"накладна":""),n:(n?"Склад: "+n+" поз. · ":"")+(RC.names||"").slice(0,80),s:1,ts:Date.now()};DOCS[tid]=ex;persist(tid,ex);renderAll()}
  var hadEx=RC.ex&&RC.total>0;dlg().close();RC=null;if(newIt)pubLater();render();toast((n?"Прихід записано: "+n+" поз."+(newIt?", нових товарів: "+newIt:""):"")+(n&&hadEx?" · ":"")+(hadEx?"витрату записано":"")||"Готово")}
 function vRcb(){var ls=botRcs();
  if(!ls.length)return '<div class="note">Нових чеків від бота немає. Коли ви надішлете фото чека боту, його товарні позиції з’являться тут: лишається один раз натиснути «Прийняти на склад».</div>';
@@ -1161,6 +1161,174 @@ document.addEventListener("click",function(e){if(e.target&&e.target.id==="ubtn")
 document.addEventListener("keydown",function(e){if((e.ctrlKey||e.metaKey)&&!e.shiftKey&&(e.key==="z"||e.key==="я")){var t=e.target,tg=t&&t.tagName;if(tg==="INPUT"||tg==="TEXTAREA"||tg==="SELECT"||(t&&t.isContentEditable)||document.querySelector("dialog[open]"))return;if(ST.length){e.preventDefault();undoU()}}});
 var snT=0,_rall=renderAll;renderAll=function(){_rall();clearTimeout(snT);snT=setTimeout(function(){if(!CUR)snap()},3000)};
 try{renderOv()}catch(e){}
+/* ---- v21: накладні з пошти → розпізнавання → прихід, нові картки, витрата ---- */
+var IU="latte-inv-url",IT="latte-inv-token",IA="latte-inv-auto",IL="latte-inv-last",IF="latte-inv-fail",IAD="latte-inv-addr",invBusy=0,invMsg="";
+var NOSTOCK=/доставк|транспорт|перевезен|послуг|зворотн\w* тар|^тара\b|заставн|логістик/i;
+function invOn(){return !!((localStorage.getItem(IU)||"").trim()&&(localStorage.getItem(IT)||"").trim())}
+function invAuto(){return localStorage.getItem(IA)==="1"}
+function invs(){return Object.keys(DOCS).filter(function(k){return k.indexOf("sk:e:")===0&&DOCS[k]&&!DOCS[k].del}).map(function(k){return Object.assign({id:k},DOCS[k])}).sort(function(a,b){return (b.ts||0)-(a.ts||0)})}
+function invPend(){return invs().filter(function(x){return x.st==="rev"})}
+function lsj2(k){try{return JSON.parse(localStorage.getItem(k)||"{}")||{}}catch(e){return{}}}
+function invGet(a,q){var u=(localStorage.getItem(IU)||"").trim(),t=(localStorage.getItem(IT)||"").trim();
+ if(!u||!t)return Promise.reject(new Error("Вкажіть адресу скрипта й пароль у Налаштуваннях (розділ «Накладні з пошти»)."));
+ return fetch(u+(u.indexOf("?")>-1?"&":"?")+"a="+a+"&t="+encodeURIComponent(t)+(q||""),{redirect:"follow"}).then(function(r){return r.text()}).then(function(s){var j;try{j=JSON.parse(s)}catch(e){throw new Error("Скрипт відповів не даними. Перевірте URL (має закінчуватися на /exec) і доступ «Будь-хто» в розгортанні.")}
+  if(!j||j.ok===false)throw new Error(j&&j.error==="token"?"Невірний пароль скрипта (TOKEN)":(j&&j.error)||"помилка скрипта");return j})}
+function b64blob(b64,mime){var s=atob(b64),a=new Uint8Array(s.length);for(var i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return new Blob([a],{type:mime||""})}
+async function jpeg64(blob){var bm=await createImageBitmap(blob),k=Math.min(1,1600/Math.max(bm.width,bm.height)),c=document.createElement("canvas");c.width=Math.max(1,Math.round(bm.width*k));c.height=Math.max(1,Math.round(bm.height*k));c.getContext("2d").drawImage(bm,0,0,c.width,c.height);
+ var j=await new Promise(function(r,x){c.toBlob(function(b){b?r(b):x(new Error("Не вдалося обробити фото"))},"image/jpeg",.85)});
+ return await new Promise(function(r){var f=new FileReader();f.onload=function(){r(String(f.result).split(",")[1])};f.readAsDataURL(j)})}
+function decText(bytes){var head=new TextDecoder("latin1").decode(bytes.slice(0,300)),m=head.match(/encoding=["']([\w-]+)["']/i),enc=m?m[1].toLowerCase():"utf-8",t;
+ try{t=new TextDecoder(enc).decode(bytes)}catch(e){t=new TextDecoder("utf-8").decode(bytes)}
+ if(!m&&(t.match(/�/g)||[]).length>5){try{t=new TextDecoder("windows-1251").decode(bytes)}catch(e){}}
+ return t}
+async function invParts(f){var n=String(f.name||"").toLowerCase(),mime=String(f.mime||"").toLowerCase(),blob=b64blob(f.b64,mime);
+ if(/\.pdf$/.test(n)||mime==="application/pdf")return [{type:"document",source:{type:"base64",media_type:"application/pdf",data:f.b64}}];
+ if(/\.(jpe?g|png|webp)$/.test(n)||/^image\//.test(mime))return [{type:"image",source:{type:"base64",media_type:"image/jpeg",data:await jpeg64(blob)}}];
+ var txt="";
+ if(/\.(xlsx|xls)$/.test(n)){if(!window.XLSX)await lib("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");var wb=XLSX.read(await blob.arrayBuffer(),{type:"array",cellDates:true});txt=wb.SheetNames.map(function(s){return "## Лист: "+s+"\n"+XLSX.utils.sheet_to_csv(wb.Sheets[s],{dateNF:"yyyy-mm-dd"})}).join("\n")}
+ else if(/\.docx$/.test(n)){if(!window.mammoth)await lib("https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js");txt=(await mammoth.extractRawText({arrayBuffer:await blob.arrayBuffer()})).value}
+ else txt=decText(new Uint8Array(await blob.arrayBuffer()));
+ txt=txt.replace(/[ \t]+/g," ").replace(/(,\s*){4,}/g,", ").replace(/\n{3,}/g,"\n\n");
+ if(txt.length>60000)txt=txt.slice(0,60000)+"\n…(далі обрізано)";
+ return [{type:"text",text:"Вміст файлу «"+f.name+"»:\n"+txt}]}
+function invPrompt(){return "Це документ від постачальника кав'ярні в Україні, що прийшов електронною поштою. Покупець: Кооператив «Латте» (ФОП Проценко-Демчук). Визнач тип документа й витягни дані. Поверни ЛИШЕ JSON без пояснень:\n"+
+ "{\"type\":\"накладна|рахунок|чек|акт|інше\",\"number\":\"номер документа або null\",\"date\":\"YYYY-MM-DD або null\",\"vendor\":\"назва ПОСТАЧАЛЬНИКА (продавця), не покупця\",\"vendor_code\":\"ЄДРПОУ або ІПН постачальника або null\",\"total\":число (сума до сплати разом з ПДВ),\"category\":\"одна з: "+CFG.ce.join("; ")+"\",\"items\":[{\"name\":\"назва як у документі\",\"qty\":число,\"unit\":\"шт|кг|г|л|мл|пак\",\"sum\":число (сума рядка з ПДВ у гривнях)}]}\n"+
+ "Правила: видаткова накладна, товарна накладна, ТТН з переліком товарів → \"накладна\". Рахунок на оплату, рахунок-фактура → \"рахунок\". Касовий чек → \"чек\". Акт робіт чи послуг → \"акт\". Лист, договір, прайс, реклама → \"інше\" з порожнім items.\n"+
+ "Якщо ціни в рядках без ПДВ, а ПДВ указано окремо, розподіли ПДВ пропорційно між рядками, щоб сума рядків дорівнювала total. Доставку й тару вноси окремими рядками з їхньою назвою. Якщо одиниця — ящик, упаковка чи блок із зазначеною кількістю штук, переведи в штуки. «уп», «пач», «пак» → пак; «пл», «бут», «банк», «пляш» → шт. Числа з крапкою як роздільником. Не вигадуй позицій і цін; якщо кількості не видно, став 1. Сьогодні "+today()+"."}
+function pj(t){try{return JSON.parse(t)}catch(e){}var m=t.match(/```(?:json)?\s*([\s\S]*?)```/);if(m)try{return JSON.parse(m[1])}catch(e){}var a=t.indexOf("{"),z=t.lastIndexOf("}");if(a>-1&&z>a)try{return JSON.parse(t.slice(a,z+1))}catch(e){}throw {code:"invalid_json",message:"Не вдалося розібрати відповідь моделі"}}
+async function invAsk(parts){var key=localStorage.getItem("latte-key");if(!key)throw {code:"no_key",message:"Додайте ключ Claude API: Налаштування → «Розпізнавання чеків і файлів»."};
+ var r;try{r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:localStorage.getItem("latte-model")||"claude-sonnet-5-5",max_tokens:8000,messages:[{role:"user",content:parts.concat([{type:"text",text:invPrompt()}])}]})})}catch(e){throw {code:"network",message:"Немає зв'язку з сервісом розпізнавання"}}
+ var j=await r.json().catch(function(){return{}});if(!r.ok)throw {code:"api_"+r.status,message:"Помилка API ("+r.status+"): "+((j.error&&j.error.message)||"невідомо")};
+ return pj((j.content||[]).map(function(c){return c.text||""}).join(""))}
+function vnorm(s){return nrm(String(s||"").toLowerCase().replace(/["«»'`]/g," ")).replace(/(^| )(тов|фоп|пп|прат|ат|тзов|ооо|тд)(?= |$)/g," ").replace(/\s+/g," ").trim()}
+function fromName(f){var m=String(f||"").match(/^\s*"?([^"<]+?)"?\s*</);return m?m[1].trim():String(f||"").replace(/<.*>/,"").trim()}
+function invCat(c){if(c&&CFG.ce.indexOf(c)>-1)return c;var k=CFG.ce.filter(function(x){return/продукт|кухн/i.test(x)})[0];return k||CFG.ce[CFG.ce.length-1]}
+function invPm(){return CFG.pm.filter(function(x){return/рахун|безгот|банк/i.test(x)})[0]||CFG.pm[0]}
+async function invProc(f){
+ var id="sk:e:"+String(f.id).replace(/[^A-Za-z0-9_-]/g,"").slice(0,60);
+ if(DOCS[id])return {id:id,st:DOCS[id].st,old:1};
+ var r=await invAsk(await invParts(f)),ty=String(r.type||"інше").toLowerCase().trim(),rows=[];
+ (r.items||[]).forEach(function(x){if(!x||!x.name)return;var q=num(x.qty),sm=num(x.sum);if(!(sm>=0))return;
+  var o={n:String(x.name).replace(/\s+/g," ").trim().slice(0,80),q:q>0?Math.round(q*1000)/1000:1,u:UN.indexOf(x.unit)>-1?x.unit:"шт",s:Math.round(sm*100)/100};
+  if(NOSTOCK.test(o.n))o.x=1;else o.i=matchItem(o.n);rows.push(o)});
+ var tot=num(r.total),sumR=Math.round(rows.reduce(function(a,x){return a+x.s},0)*100)/100,d=/^\d{4}-\d{2}-\d{2}$/.test(r.date||"")?r.date:(f.date||today());
+ var o={st:"rev",ty:ty,no:String(r.number||"").replace(/^null$/,"").slice(0,30),d:d,v:(String(r.vendor||"").trim()||fromName(f.from)).slice(0,40),vc:String(r.vendor_code||"").replace(/\D/g,"").slice(0,12),a:tot>0?Math.round(tot*100)/100:sumR,cat:invCat(r.category),li:rows,fn:String(f.name||"").slice(0,80),fr:String(f.from||"").slice(0,80),sj:String(f.subj||"").slice(0,120),w:[],ts:Date.now()};
+ var w=o.w,doc=ty==="накладна"||ty==="чек";
+ /* дубль цієї ж накладної (повторний лист або той самий документ у PDF і Excel) */
+ var dup=invs().filter(function(x){return x.st!=="err"&&x.st!=="skip"&&vnorm(x.v)===vnorm(o.v)&&((o.no&&x.no===o.no&&x.d===o.d)||(x.d===o.d&&Math.abs((x.a||0)-o.a)<=0.01&&x.ty===o.ty))})[0];
+ if(dup){o.st="dup";o.dupOf=dup.id;w.push("Цю накладну вже отримано ("+(dup.fn||"інший файл")+").")}
+ else if(!doc){o.st=ty==="рахунок"?"rev":"skip";w.push(ty==="рахунок"?"Це рахунок на оплату, а не накладна. Якщо постачальник не надсилає окремої накладної, прийміть товар за рахунком; інакше пропустіть і дочекайтеся накладної.":ty==="акт"?"Це акт робіт чи послуг: на склад не приймається.":"Схоже, це не накладна ("+(ty||"невідомо")+").")}
+ else{
+  if(!rows.length)w.push("У документі не знайдено товарних рядків.");
+  if(!(tot>0))w.push("Не знайдено загальної суми до сплати.");
+  else if(rows.length&&Math.abs(sumR-tot)>Math.max(1,tot*0.01))w.push("Сума рядків "+mny(sumR)+" не збігається з підсумком "+mny(tot)+".");
+  var lim=new Date(Date.now()+864e5).toLocaleDateString("sv"),old=new Date(Date.now()-60*864e5).toLocaleDateString("sv");
+  if(o.d>lim||o.d<old)w.push("Незвична дата документа: "+dm(o.d)+".");
+  if(o.a>0&&all().some(function(x){return x.t==="e"&&x.d===o.d&&Math.abs((x.a||0)-o.a)<=0.01}))w.push("Витрата на "+mny(o.a)+" за "+dm(o.d)+" уже є (можливо, внесена вручну чи ботом).");
+  rows.forEach(function(x){if(x.x||!x.i)return;var it=itemById(x.i);if(!it)return;var cv=convU(x.q,x.u,it.u);
+   if(!cv.ok)w.push("«"+x.n+"»: одиниці в накладній («"+x.u+"») і в товарі «"+it.n+"» («"+it.u+"») різні.");
+   else if(it.p>0&&cv.q>0){var p=x.s/cv.q;if(p>2*it.p||p<it.p/2)w.push("«"+it.n+"»: ціна "+mny(p)+" за "+it.u+" замість звичайних "+mny(it.p)+".")}});
+ }
+ DOCS[id]=o;saveMany([id]);
+ if(o.st==="rev"&&doc&&!w.length&&invAuto())invApply(id,1);
+ return {id:id,st:DOCS[id].st}}
+function invApply(id,auto){
+ var o=DOCS[id];if(!o||o.st==="done")return;
+ var ids=[],mv=[],ni=[],ts0=Date.now(),d=o.d,ts=new Date(d+"T12:00:00").getTime(),vv=String(o.v||"").slice(0,40);
+ (o.li||[]).forEach(function(x,k){if(x.x)return;var iid=x.i&&itemById(x.i)?x.i:matchItem(x.n),it,isN=false;
+  if(!iid){iid=nid()+k;var nm=x.n.slice(0,60);if(items().some(function(y){return y.n.toLowerCase()===nm.toLowerCase()}))nm=(nm+" · "+(vv||"накладна")).slice(0,60);it={n:nm,u:x.u,bc:[],min:0,p:0,v:vv,src:"inv",ts:Date.now()};ni.push(iid);isN=true}
+  else it=Object.assign({},DOCS["sk:i:"+iid]);
+  var q=isN?x.q:convU(x.q,x.u,it.u).q,p=q>0?Math.round(x.s/q*100)/100:0;if(p>0)it.p=p;if(vv&&!it.v)it.v=vv;
+  DOCS["sk:i:"+iid]=it;ids.push("sk:i:"+iid);
+  var mid="sk:m:in"+ts0.toString(36)+k+Math.random().toString(36).slice(2,4);DOCS[mid]={k:"in",i:iid,q:Math.round(q*1000)/1000,p:p,v:vv,w:"пошта",r:o.no?"накл. №"+o.no:"накладна",ts:ts+k,d:d};ids.push(mid);mv.push(mid);
+  var ak=aliasKey(x.n);if(ak.length>8){DOCS[ak]={i:iid};ids.push(ak)}});
+ var tid="";
+ if(o.a>0){tid="t"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);DOCS[tid]={t:"e",d:d,a:o.a,c:invCat(o.cat),v:vv,m:invPm(),g:"накладна",n:("Накладна"+(o.no?" №"+o.no:"")+" · склад: "+mv.length+" поз.").slice(0,80),s:1,ts:Date.now()};ids.push(tid)}
+ DOCS[id]=Object.assign({},o,{st:"done",auto:auto?1:0,mv:mv,ni:ni,tx:tid,at:Date.now()});ids.push(id);
+ saveMany(ids);if(ni.length)pubLater();renderAll()}
+async function invUndo(id){var o=DOCS[id];if(!o||o.st!=="done")return;
+ if(!await ask("Скасувати прийом накладної"+(o.no?" №"+o.no:"")+" від «"+(o.v||"")+"»? Прихід і витрата цієї накладної видаляться, вона повернеться в «Потребують перевірки»."))return;
+ var ids=[];(o.mv||[]).forEach(function(m){if(DOCS[m]){DOCS[m]=Object.assign({},DOCS[m],{del:1});ids.push(m)}});
+ var left={};moves().forEach(function(m){left[m.i]=1});
+ var gone=(o.ni||[]).filter(function(i){return DOCS["sk:i:"+i]&&!left[i]});
+ if(o.tx&&DOCS[o.tx]){delete DOCS[o.tx];persist(o.tx,null)}
+ gone.forEach(function(i){delete DOCS["sk:i:"+i];persist("sk:i:"+i,null)});
+ DOCS[id]=Object.assign({},o,{st:"rev",mv:[],ni:[],tx:"",auto:0});ids.push(id);
+ saveMany(ids);if(gone.length)pubLater();renderAll();toast("Прийом скасовано")}
+function invOpen(id){var o=DOCS[id];if(!o)return;
+ var rows=(o.li||[]).map(function(x){var r={nm:x.n,rq:x.q,ru:x.u,sum:x.s,i:x.x?"":(x.i&&itemById(x.i)?x.i:(matchItem(x.n)||"+")),q:0,inc:!x.x};r.q=rcQty(r);return r});
+ var dup=all().some(function(x){return x.t==="e"&&x.d===o.d&&Math.abs((x.a||0)-(o.a||0))<=0.01});
+ RC={vendor:o.v||"",date:o.d||today(),rows:rows,ex:!dup,dup:dup,total:o.a||0,cat:invCat(o.cat),names:("Накладна"+(o.no?" №"+o.no:"")+" · "+rows.map(function(r){return r.nm}).join(", ")).slice(0,80),only:false,eid:id};rcDraw()}
+var _rap2=rcApply;rcApply=async function(){var eid=RC&&RC.eid;await _rap2();if(eid&&!RC&&DOCS[eid]){DOCS[eid]=Object.assign({},DOCS[eid],{st:"done",auto:0,at:Date.now()});saveMany([eid]);render()}};
+function invSkip(id){var o=DOCS[id];if(!o)return;DOCS[id]=Object.assign({},o,{st:"skip",at:Date.now()});saveMany([id]);render();toast("Пропущено")}
+function invReopen(id){var o=DOCS[id];if(!o)return;DOCS[id]=Object.assign({},o,{st:"rev"});saveMany([id]);invOpen(id)}
+async function invPull(manual){
+ if(invBusy)return;
+ if(!invOn()){if(manual)toast("Спершу вкажіть адресу скрипта й пароль: Налаштування → «Накладні з пошти»");return}
+ if(!localStorage.getItem("latte-key")){invMsg="Для розпізнавання потрібен ключ Claude API (Налаштування → «Розпізнавання чеків і файлів»). Листи чекають у пошті.";if(manual)showErr(invMsg);render();return}
+ if(!manual&&Date.now()-(+localStorage.getItem(IL)||0)<600000)return;
+ invBusy=1;try{localStorage.setItem(IL,String(Date.now()))}catch(e){}
+ var got=0,auto=0,rev=0,guard=0,fails=lsj2(IF),errs=[],more=false,rep=[];
+ try{do{if(manual)toast("Перевіряю пошту…",0,1);
+   var j=await invGet("list");if(j.addr)try{localStorage.setItem(IAD,j.addr)}catch(e){}
+   var ok=[],rel=[],fl=j.files||[],stop=0;
+   for(var i=0;i<fl.length;i++){var f=fl[i];toast("Розпізнаю накладну «"+f.name+"»… (до хвилини)",0,1);
+    try{var res=await invProc(f);ok.push(f.id);delete fails[f.id];if(!res.old){got++;var x=DOCS[res.id];if(res.st==="done"){auto++;rep.push("✅ "+(x.v||"?")+(x.no?" №"+x.no:"")+": "+mny(x.a||0)+", "+(x.mv||[]).length+" поз."+((x.ni||[]).length?" (нових карток "+x.ni.length+")":""))}else if(res.st==="rev"){rev++;rep.push("👀 На перевірку: "+(x.v||"?")+(x.no?" №"+x.no:"")+" "+mny(x.a||0))}}}
+    catch(e){var m=(e&&e.message)||"помилка";errs.push(f.name+": "+m);fails[f.id]=(fails[f.id]||0)+1;
+     if(fails[f.id]>=3||(e&&e.code==="invalid_json"&&fails[f.id]>=2)){var eid="sk:e:"+String(f.id).replace(/[^A-Za-z0-9_-]/g,"").slice(0,60);DOCS[eid]={st:"err",d:f.date||today(),v:fromName(f.from).slice(0,40),fn:String(f.name||"").slice(0,80),fr:String(f.from||"").slice(0,80),sj:String(f.subj||"").slice(0,120),a:0,li:[],w:["Не вдалося розпізнати: "+m+". Відкрийте лист і внесіть накладну через «📷 Чек або накладна» на вкладці «Прихід»."],ts:Date.now()};saveMany([eid]);ok.push(f.id);delete fails[f.id]}
+     else rel.push(f.id);if(e&&(e.code==="no_key"||e.code==="network"||/^api_(401|403|429|5)/.test(e.code||""))){stop=1;break}}}
+   if(stop)for(i=i+1;i<fl.length;i++)rel.push(fl[i].id);
+   if(ok.length)await invGet("done","&ids="+encodeURIComponent(ok.join(",")));
+   if(rel.length)await invGet("release","&ids="+encodeURIComponent(rel.join(",")));
+   more=!!j.more&&!rel.length}while(more&&++guard<5);
+  invMsg="Остання перевірка: "+new Date().toLocaleString("uk-UA")+(got?". Нових документів: "+got+" (автоматично прийнято "+auto+", на перевірку "+rev+")":". Нових накладних немає")+(errs.length?". Помилки: "+errs.join("; "):"");
+  if(manual||got)toast(got?(auto?"Накладні: прийнято "+auto+(rev?", на перевірку "+rev:""):"Нових накладних на перевірку: "+rev):"Нових накладних немає");
+  if(rep.length&&tok())api("/api/skx/report",{lines:["📨 Накладні з пошти"].concat(rep)}).catch(function(){});
+ }catch(e){invMsg="Не вдалося перевірити пошту: "+((e&&e.message)||"помилка")+(e&&e.name==="TypeError"?" (немає зв'язку зі скриптом)":"");if(manual){g("toast").hidden=true;showErr(invMsg)}}
+ try{localStorage.setItem(IF,JSON.stringify(fails))}catch(e){}
+ invBusy=0;render()}
+var IST={done:"прийнято",rev:"на перевірку",dup:"дубль",skip:"пропущено",err:"помилка"};
+function invCard(x,full){
+ var h='<div class="c" style="margin:8px 0"><div class="row"><b style="flex:1">'+E(x.v||"Постачальник?")+(x.no?" · №"+E(x.no):"")+'</b><span>'+(x.a>0?mny(x.a):"")+'</span></div>';
+ h+='<div class="sub">'+E(dm(x.d))+' · '+E(x.ty||"документ")+(x.li&&x.li.length?' · позицій: '+x.li.length:"")+' · '+E(IST[x.st]||x.st)+(x.st==="done"?(x.auto?" автоматично":" вручну"):"")+'</div>';
+ if(x.fn)h+='<div class="sub">📎 '+E(x.fn)+(x.sj?" · «"+E(x.sj.slice(0,60))+"»":"")+'</div>';
+ if(full&&x.li&&x.li.length)h+='<div class="sub">'+E(x.li.slice(0,5).map(function(l){return l.n+" "+fm(l.q)+" "+l.u}).join("; ")+(x.li.length>5?"…":"")).slice(0,240)+'</div>';
+ if(x.st==="done"&&(x.ni||[]).length)h+='<div class="sub">Створено нових карток товарів: '+x.ni.length+'. Додайте їм мінімум і штрихкоди у «Товари».</div>';
+ (x.w||[]).forEach(function(t){h+='<div class="sub e">⚠ '+E(t)+'</div>'});
+ h+='<div class="row">';
+ if(x.st==="rev")h+='<button class="b" data-invo="'+E(x.id)+'">Перевірити й прийняти</button><button class="b g" data-invs="'+E(x.id)+'">Пропустити</button>';
+ else if(x.st==="done"&&(x.mv||[]).length)h+='<button class="b g" data-invu="'+E(x.id)+'">↩ Скасувати прийом</button>';
+ else if((x.st==="skip"||x.st==="dup")&&x.li&&x.li.length)h+='<button class="b g" data-invr="'+E(x.id)+'">Все одно прийняти</button>';
+ return h+'</div></div>'}
+function vInv(){
+ var addr=localStorage.getItem(IAD)||"latte.nakladni@gmail.com",P=invPend(),R=invs().filter(function(x){return x.st!=="rev"}).slice(0,30);
+ var h='<div class="row"><button class="b" id="invgo">📨 Перевірити пошту</button><label class="sub"><input type="checkbox" id="invauto"'+(invAuto()?" checked":"")+'> приймати без мого підтвердження, якщо все сходиться (не рекомендовано)</label></div>';
+ h+='<p class="sub">Постачальники надсилають накладні (PDF, Excel, XML або фото) на <b>'+E(addr)+'</b>. Програма розпізнає документ і кладе його сюди. Ви звіряєте позиції, кількість і суму та натискаєте «Записати»: лише тоді товар стає на прихід, створюються картки нових товарів і сума йде у «Витрати». Проблеми (сума не сходиться, інша ціна чи одиниці, можливий дубль) підсвічуються червоним. Пошта перевіряється під час відкриття додатка й кожні 10 хвилин.</p>';
+ if(!invOn())h+='<div class="note">Ще не підключено. Налаштування → «Накладні з пошти»: вставте адресу скрипта Gmail і пароль.</div>';
+ if(invMsg)h+='<p class="sub">'+E(invMsg)+'</p>';
+ h+='<h2>Потребують перевірки'+(P.length?" ("+P.length+")":"")+'</h2>'+(P.length?P.map(function(x){return invCard(x,1)}).join(""):'<div class="note">Немає. Усе, що прийшло, оброблено.</div>');
+ if(R.length)h+='<h2>Останні документи</h2>'+R.map(function(x){return invCard(x,0)}).join("");
+ return h}
+vmap.inv=vInv;
+var _seg2=seg;seg=function(){var n=invPend().length;return _seg2().replace(/(<button class="b(?: g)?" data-skv="rcb")/,'<button class="b '+(view==="inv"?"":"g")+'" data-skv="inv" style="white-space:nowrap">📨 Накладні'+(n?" ("+n+")":"")+'</button>$1')};
+nav=function(){var n=pend().length+botRcs().length+invPend().length,b=document.querySelector('#nav [data-t="sk"]');if(b)b.textContent="Склад"+(n?" ("+n+")":"")};
+var _ro3=renderOv;renderOv=function(){_ro3();try{var n=invPend().length,c=$("ov")&&$("ov").querySelector(".c"),r=c&&c.querySelector(".row");if(n&&r)r.insertAdjacentHTML("afterend",'<div class="row" style="margin:6px 0"><button class="b g" data-go="inv" style="text-align:left;flex:1">📨 Накладних з пошти на перевірку: '+n+'</button></div>')}catch(e){}};
+var _rs3=renderSet;renderSet=function(){_rs3();var s=$("set");if(!s)return;
+ s.insertAdjacentHTML("beforeend",'<h2>Накладні з пошти</h2><p class="sub">Скрипт в окремій скриньці для накладних віддає додатку вкладення з листів постачальників. Адреса для постачальників: <b>'+esc(localStorage.getItem(IAD)||"latte.nakladni@gmail.com")+'</b>. Для розпізнавання потрібен ключ Claude API (розділ вище).</p><div class="row"><input id="invu" size="34" placeholder="https://script.google.com/macros/s/…/exec" value="'+esc(localStorage.getItem(IU)||"")+'"><input id="invt" type="password" autocomplete="off" placeholder="Пароль (TOKEN зі скрипта)" value="'+esc(localStorage.getItem(IT)||"")+'"></div><div class="row"><button class="b" id="invsave">Зберегти й перевірити пошту</button></div>')};
+document.addEventListener("click",async function(ev){var t=ev.target;if(!t||!t.closest)return;var el;
+ if(t.closest("#invgo")){invPull(1);return}
+ if(t.closest("#skpull")&&view==="inv"){invPull(1);return}
+ if(t.closest("#invsave")){var u=$("invu").value.trim(),tk=$("invt").value.trim();if(u&&!/^https:\/\/script\.google(usercontent)?\.com\//.test(u)){showErr("Адреса має бути URL вебзастосунку Apps Script (https://script.google.com/macros/s/…/exec).");return}if(/[^\x00-\xFF]/.test(tk)){showErr("Пароль містить не латинські символи. Перемкніть клавіатуру на англійську.");return}localStorage.setItem(IU,u);localStorage.setItem(IT,tk);toast("Збережено");invPull(1);return}
+ if(el=t.closest("[data-invo]")){invOpen(el.dataset.invo);return}
+ if(el=t.closest("[data-invs]")){if(await ask("Пропустити цей документ? На склад і у витрати він не потрапить."))invSkip(el.dataset.invs);return}
+ if(el=t.closest("[data-invu]")){invUndo(el.dataset.invu);return}
+ if(el=t.closest("[data-invr]")){invReopen(el.dataset.invr);return}});
+document.addEventListener("change",function(e){if(e.target&&e.target.id==="invauto"){try{localStorage.setItem(IA,e.target.checked?"1":"0")}catch(x){}toast(e.target.checked?"Накладні без зауважень прийматимуться без підтвердження":"Кожну накладну підтверджуєте ви")}});
+setTimeout(function(){if(invOn())invPull(0)},9000);
+document.addEventListener("visibilitychange",function(){if(!document.hidden&&invOn())invPull(0)});
+setInterval(function(){if(!document.hidden&&invOn())invPull(0)},600000);
+try{nav();renderOv()}catch(e){}
+
 })();
 </script>
 <script>
@@ -1201,6 +1369,49 @@ document.addEventListener("click",function(e){
 },true);
 var pend=0;new MutationObserver(function(){if(pend)return;pend=1;requestAnimationFrame(function(){pend=0;scan()})}).observe(document.body,{childList:true,subtree:true});
 scan();
+})();
+</script>
+<script>
+/* v23: Генератор. Години й витрата пального з кнопок у Telegram-групі керівництва (сервер /api/gen) → витрата за кожен день */
+(function(){
+var QU="latte-qr-url",QT="latte-qr-token",GTS="latte-gen-ts",DEFURL="https://latte-pay.demchukolexander1988.workers.dev",GC="Генератор (пальне)",busy=0;
+function shift(y,d){var a=y.split("-"),x=new Date(+a[0],+a[1]-1+d,1);return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")}
+function hm(h){var m=Math.round((h||0)*60);return Math.floor(m/60)+":"+String(m%60).padStart(2,"0")}
+function ensureCat(){if(CFG.ce.indexOf(GC)<0){var ix=CFG.ce.indexOf("Інше");if(ix<0)CFG.ce.push(GC);else CFG.ce.splice(ix,0,GC);DOCS.cfg=CFG;persist("cfg",CFG)}}
+function markIds(ids){if(typeof syncOn==="function"&&syncOn()){var D={};try{D=JSON.parse(localStorage.getItem("latte-dirty")||"{}")}catch(e){}ids.forEach(function(id){D[id]=1});try{localStorage.setItem("latte-dirty",JSON.stringify(D))}catch(e){}setTimeout(function(){tgSync(1,1)},1500)}}
+function fetchYm(y){var u=(localStorage.getItem(QU)||DEFURL).trim().replace(/\/+$/,""),t=(localStorage.getItem(QT)||"").trim();
+ return fetch(u+"/api/gen?ym="+y,{headers:{"Authorization":"Bearer "+t}}).then(function(r){return r.json().catch(function(){return{}}).then(function(j){
+  if(r.status===401)throw new Error("Невірний токен (STATS_TOKEN)");
+  if(r.status===404)throw new Error("На сервері ще стара версія (потрібна v73 або новіша)");
+  if(!r.ok)throw new Error(j.error||("Помилка сервера ("+r.status+")"));
+  return j})})}
+function apply(j){var ids=[],cash=(CFG.pm.filter(function(x){return/гот/i.test(x)})[0]||CFG.pm[0]),D={};
+ (j.list||[]).forEach(function(x){var a=D[x.d]||(D[x.d]={h:0,l:0,g:0,n:0});a.h+=x.h;a.l+=x.l;a.g+=x.g;a.n++});
+ Object.keys(DOCS).forEach(function(id){if(id.indexOf("gen-"+j.ym)===0&&DOCS[id]&&DOCS[id].sv&&!D[id.slice(4)]){delete DOCS[id];ids.push(id);if(col)persist(id,null)}});
+ Object.keys(D).forEach(function(d){var x=D[d],id="gen-"+d,old=DOCS[id];
+  if(old&&!old.sv)return; // запис змінено вручну: не чіпаємо
+  var o={t:"e",d:d,a:Math.round(x.g*100)/100,c:GC,v:"Генератор · "+hm(x.h)+" год · "+(Math.round(x.l*10)/10)+" л",m:cash,g:"генератор",n:"Кнопки «Генератор» у Telegram · запусків: "+x.n,s:0,sv:1,ts:(old&&old.ts)||Date.now()};
+  if(!old||old.a!==o.a||old.v!==o.v){DOCS[id]=o;ids.push(id);if(col)persist(id,o)}});
+ return ids}
+async function sync(manual){
+ if(busy)return;var t=(localStorage.getItem(QT)||"").trim();
+ if(!t){if(manual)toast("Спершу введіть токен у Налаштуваннях (розділ «QR-оплати»)");return}
+ if(/[^\x00-\xFF]/.test(t)){if(manual)showErr("Токен містить не латинські символи. Перемкніть клавіатуру на англійську.");return}
+ if(!manual&&Date.now()-(+localStorage.getItem(GTS)||0)<300000)return;
+ busy=1;try{localStorage.setItem(GTS,String(Date.now()))}catch(e){}
+ if(manual)toast("Підтягую генератор…",0,1);
+ try{var cur=new Date().toLocaleDateString("sv").slice(0,7),ms=[cur,shift(cur,-1)],ids=[],tot={h:0,g:0};
+  ensureCat();
+  for(var q=0;q<ms.length;q++){var j=await fetchYm(ms[q]);ids=ids.concat(apply(j));if(q===0){tot.h=j.h||0;tot.g=j.g||0}}
+  if(ids.length&&!col){try{localStorage.setItem("latte-fin",JSON.stringify(DOCS))}catch(e){}markIds(ids)}
+  renderAll();if(manual||ids.length)toast((ids.length?"Генератор: оновлено днів "+ids.length+". ":"")+"За місяць "+hm(tot.h)+" год · "+Math.round(tot.g).toLocaleString("uk-UA")+" "+CFG.cur)
+ }catch(e){if(manual){$("toast").hidden=true;showErr("Генератор: "+((e&&e.message)||"помилка")+(e&&e.name==="TypeError"?"\nПеревірте адресу сервера й інтернет.":""))}}
+ busy=0}
+document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("[data-gen]"))sync(1)});
+var ir=$("i")&&$("i").querySelector(".row");if(ir)ir.insertAdjacentHTML("beforeend",'<button class="b g" data-gen title="Підтягнути години генератора з Telegram">⚡ Генератор</button>');
+setTimeout(function(){sync(0)},8000);
+document.addEventListener("visibilitychange",function(){if(!document.hidden)sync(0)});
+setInterval(function(){if(!document.hidden)sync(0)},600000);
 })();
 </script>
 </body>
