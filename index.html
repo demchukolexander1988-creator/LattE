@@ -599,7 +599,8 @@ async function pull(manual){
     after=ev.k});more=!!j.more}while(more&&++guard<20);
   try{localStorage.setItem(AF,after)}catch(e){}
   if(ids.length)saveMany(ids);
-  render();if(manual||ids.length)toast(ids.length?"Склад: нових записів зі сканера "+ids.length:"Склад: нових записів немає")
+  var na=0;try{na=await pullActs();if(na)renderOv()}catch(e){}
+  render();if(manual||ids.length||na)toast((ids.length?"Склад: нових записів зі сканера "+ids.length:"Склад: нових записів немає")+(na?" · актів списання: "+na:""))
  }catch(e){if(manual)showErr("Склад: "+((e&&e.message)||"помилка")+(e&&e.name==="TypeError"?"\nПеревірте адресу сервера й інтернет.":""))}
  busy=0}
 function pubNow(){
@@ -776,7 +777,7 @@ function vSa(){
    return '<tr><td>'+E(r.nm)+'</td><td>'+fm(r.q)+'</td><td'+((r.tc||r.it)?'':' class="e"')+'>'+cell+'</td></tr>'}).join("")+'</tbody></table></div>';
   h+='<div class="row"><button class="b" id="saapply"'+(okc?"":" disabled")+'>Списати зі складу ('+okc+')</button></div>'}
  var days={};moves().forEach(function(m){if(m.k==="sl")days[m.d]=(days[m.d]||0)+1});var dk=Object.keys(days).sort().reverse().slice(0,14);
- if(dk.length)h+='<h2>Імпортовані дні</h2><div class="tw"><table><tbody>'+dk.map(function(d){return '<tr><td>'+dm(d)+'</td><td>позицій списано: '+days[d]+'</td><td><button class="b g" data-sacancel="'+d+'">Скасувати імпорт</button></td></tr>'}).join("")+'</tbody></table></div>';
+ if(dk.length)h+='<h2>Імпортовані дні</h2><div class="tw"><table><tbody>'+dk.map(function(d){return '<tr><td>'+dm(d)+(DOCS["sk:x:"+d]?" · "+E(DOCS["sk:x:"+d].no):"")+'</td><td>позицій списано: '+days[d]+'</td><td><button class="b g" data-sacancel="'+d+'">Скасувати імпорт</button></td></tr>'}).join("")+'</tbody></table></div>';
  return h}
 
 
@@ -949,6 +950,43 @@ function render(){
  if(keep>-1&&g("skq")){g("skq").focus();try{g("skq").setSelectionRange(keep,keep)}catch(e){}}
  renderPr()}
 function tabNow(){return typeof tab!=="undefined"?tab:""}
+
+/* ---- v25: акти списання з Checkbox (продажі за зміну → списання інгредієнтів за техкартами) ---- */
+function acts(){return Object.keys(DOCS).filter(function(k){return k.indexOf("sk:x:")===0&&DOCS[k]&&DOCS[k].d}).map(function(k){return DOCS[k]}).sort(function(a,b){return a.d<b.d?1:-1})}
+function actRows(a){return matchSales((a.rows||[]).map(function(r){return{nm:r.n,q:r.q}}))}
+function actUnkList(a){return actRows(a).filter(function(r){return !r.tc&&!r.it})}
+function actUnk(){var n=0;acts().slice(0,7).forEach(function(a){n+=actUnkList(a).length});return n}
+function actApply(a){
+ var need={};actRows(a).forEach(function(r){if(r.tc){var t=DOCS["sk:t:"+r.tc];if(t)(t.ing||[]).forEach(function(x){need[x.i]=(need[x.i]||0)+x.q*r.q})}else if(r.it)need[r.it]=(need[r.it]||0)+r.q});
+ var d=a.d,ds=d.replace(/-/g,""),ids=[],ts=new Date(d+"T23:00:00").getTime();
+ moves().forEach(function(m){if(m.k==="sl"&&m.d===d&&!need[m.i]){DOCS[m.id]=Object.assign({},m,{del:1});delete DOCS[m.id].id;ids.push(m.id)}});
+ var ni=0;Object.keys(need).forEach(function(i){if(!itemById(i))return;var id="sk:m:s"+ds+"-"+i;DOCS[id]={k:"sl",i:i,q:Math.round(need[i]*10000)/10000,r:"акт "+(a.no||""),w:"Checkbox",ts:ts,d:d};ids.push(id);ni++});
+ var k="sk:x:"+d;DOCS[k]=Object.assign({},a,{ap:Date.now(),ni:ni});ids.push(k);saveMany(ids);return ni}
+async function pullActs(){if(!tok())return 0;var j=await api("/api/skx/sales?after="+kd(Date.now()-12*864e5)),n=0;
+ (j.acts||[]).forEach(function(a){if(!a||!/^\d{4}-\d{2}-\d{2}$/.test(a.d||""))return;var o=DOCS["sk:x:"+a.d];if(o&&o.ts===a.ts)return;actApply(a);n++});return n}
+function vActs(){var L=acts().slice(0,14),h='<h2 style="margin-top:0">Акти списання з Checkbox</h2><p class="sub">Після закриття зміни в Checkbox сервер створює акт: що продано за день. Програма сама списує інгредієнти зі складу за техкартами. Позиції без техкарти не списуються: натисніть «Прив’язати», оберіть техкарту для кожної й «Списати зі складу».</p>';
+ h+='<div class="row"><input id="actd" type="date" value="'+today()+'"><button class="b g" id="actmk">Створити акт з Checkbox за дату</button><button class="b g" id="actpull">🔄 Забрати акти</button></div>';
+ if(!L.length)return h+'<div class="note">Актів ще немає. Перший з’явиться після закриття зміни в Checkbox.</div><hr style="border:0;border-top:1px solid var(--line);margin:18px 0">';
+ h+='<div class="tw"><table><thead><tr><th>Дата</th><th>Акт</th><th>Позицій</th><th>Продано на</th><th>Списано товарів</th><th>Без техкарти</th><th></th></tr></thead><tbody>'+L.map(function(a){var u=actUnkList(a);
+  return '<tr><td>'+dm(a.d)+'</td><td>'+E(a.no)+'</td><td>'+(a.rows||[]).length+'</td><td>'+mny((a.tot||0)/100)+'</td><td>'+(a.ni||0)+'</td><td'+(u.length?' class="e" style="text-align:left"':"")+'>'+(u.length?u.length+": "+E(u.slice(0,3).map(function(r){return r.nm}).join(", ")+(u.length>3?"…":"")):"—")+'</td><td style="white-space:nowrap"><button class="b g" data-actp="'+E(a.d)+'">🖨 Акт</button>'+(u.length?' <button class="b g" data-acto="'+E(a.d)+'">Прив’язати</button>':"")+' <button class="b g" data-acta="'+E(a.d)+'">Застосувати знову</button></td></tr>'}).join("")+'</tbody></table></div>';
+ return h+'<hr style="border:0;border-top:1px solid var(--line);margin:18px 0">'}
+function actPrint(d){var a=DOCS["sk:x:"+d];if(!a)return;var w=window.open("","_blank");if(!w){showErr("Браузер заблокував нове вікно. Дозвольте спливні вікна для цього сайту.");return}
+ var sl=moves().filter(function(m){return m.k==="sl"&&m.d===d}).map(function(m){var it=itemById(m.i);return{n:inm(m.i),q:m.q,u:inu(m.i),c:it&&it.p?m.q*it.p:0}}).sort(function(x,y){return x.n.localeCompare(y.n,"uk")}),sc=sl.reduce(function(s,x){return s+x.c},0);
+ var css="body{font:14px/1.45 Arial,sans-serif;margin:28px;color:#111}h1{font-size:18px;margin:0 0 4px}table{border-collapse:collapse;width:100%;margin:10px 0 18px}th,td{border:1px solid #999;padding:5px 7px;text-align:left}td.r,th.r{text-align:right}.s{margin-top:36px;display:flex;gap:60px}@media print{button{display:none}}";
+ var h='<!DOCTYPE html><html lang="uk"><head><meta charset="utf-8"><title>Акт списання '+E(a.no)+'</title><style>'+css+'</style></head><body><button onclick="print()">🖨 Друкувати</button>';
+ h+='<h1>Акт списання № '+E(a.no)+' від '+dm(d).replace(/\.(\d\d)$/,".20$1")+'</h1><div>Кооператив «Латте», вул. Френчка, 2</div><div>Підстава: продажі за зміну Checkbox'+(a.sh&&a.sh.serial?" № "+E(a.sh.serial):"")+(a.n?" (чеків: "+a.n+")":"")+'</div>';
+ h+='<h2 style="font-size:15px">1. Продано за день</h2><table><tr><th>№</th><th>Найменування</th><th class="r">Кількість</th><th class="r">Сума</th></tr>'+(a.rows||[]).map(function(r,i){return '<tr><td>'+(i+1)+'</td><td>'+E(r.n)+'</td><td class="r">'+fm(r.q)+'</td><td class="r">'+mny((r.s||0)/100)+'</td></tr>'}).join("")+'<tr><td></td><td><b>Разом</b></td><td></td><td class="r"><b>'+mny((a.tot||0)/100)+'</b></td></tr></table>';
+ h+='<h2 style="font-size:15px">2. Списано зі складу (інгредієнти за техкартами)</h2>'+(sl.length?'<table><tr><th>№</th><th>Товар</th><th class="r">Кількість</th><th>Од.</th><th class="r">Собівартість</th></tr>'+sl.map(function(x,i){return '<tr><td>'+(i+1)+'</td><td>'+E(x.n)+'</td><td class="r">'+fm(x.q)+'</td><td>'+E(x.u)+'</td><td class="r">'+(x.c?mny(x.c):"—")+'</td></tr>'}).join("")+'<tr><td></td><td><b>Разом</b></td><td></td><td></td><td class="r"><b>'+mny(sc)+'</b></td></tr></table>':'<p>Нічого не списано: для проданих позицій немає техкарт.</p>');
+ var u=actUnkList(a);if(u.length)h+='<p>Не списано (немає техкарти): '+E(u.map(function(r){return r.nm+" — "+fm(r.q)}).join("; "))+'</p>';
+ h+='<div class="s"><div>Склав: ____________________</div><div>Затвердив: ____________________</div></div></body></html>';
+ w.document.open();w.document.write(h);w.document.close()}
+document.addEventListener("click",async function(ev){var t=ev.target;if(!t||!t.closest)return;var el;
+ if(el=t.closest("[data-actp]")){actPrint(el.dataset.actp);return}
+ if(el=t.closest("[data-acta]")){var a=DOCS["sk:x:"+el.dataset.acta];if(a){var n=actApply(a);render();toast("Акт "+a.no+": списано товарів складу "+n)}return}
+ if(el=t.closest("[data-acto]")){var a2=DOCS["sk:x:"+el.dataset.acto];if(a2){SALE={date:a2.d,text:(a2.rows||[]).map(function(r){return r.n+";"+String(r.q).replace(".",",")}).join("\n"),rows:actRows(a2)};render();setTimeout(function(){var x=g("saapply");if(x)x.scrollIntoView({block:"center"})},50)}return}
+ if(t.closest("#actpull")){try{var n2=await pullActs();render();toast(n2?"Нових актів: "+n2:"Нових актів немає")}catch(e){showErr("Акти: "+((e&&e.message)||"помилка"))}return}
+ if(t.closest("#actmk")){var d=g("actd").value||today();toast("Запитую Checkbox…",0,1);try{await api("/api/skx/act",{d:d});var n3=await pullActs();render();toast("Акт за "+dm(d)+" створено"+(n3?" і застосовано":""))}catch(e){g("toast").hidden=true;showErr("Акт: "+((e&&e.message)||"помилка")+(/404|Не знайдено/.test((e&&e.message)||"")?"\nПотрібен воркер v76 або новіший.":""))}return}
+});
 
 /* ---- картка товару ---- */
 var DL=null;
@@ -1132,6 +1170,7 @@ function todayBlock(){var el=$("ov");if(!el)return;var oc=el.querySelector(".car
  var bots=botRcs().length,nn=pend().length;
  if(bots)tk.push(["rcb","📦 Чеків від бота: "+bots+". Прийняти на склад"]);
  if(nn)tk.push(["new","🆕 Нових кодів зі сканера: "+nn]);
+ var au=actUnk();if(au)tk.push(["sa","📄 Акти списання: позицій без техкарти "+au+". Прив’яжіть у «Продажах»"]);
  if(low.length)tk.push(["bal","⚠️ Нижче мінімуму ("+low.length+"): "+nm(low)]);
  if(neg.length)tk.push(["bal","❗ Розрахунок у мінусі ("+neg.length+"): "+nm(neg)+". Перевірте приходи"]);
  if(tcs().length){var yd=new Date(Date.now()-864e5).toLocaleDateString("sv");if(!moves().some(function(m){return m.k==="sl"&&m.d===yd}))tk.push(["sa","💳 Продажі за вчора ще не імпортовано"])}
@@ -1337,6 +1376,7 @@ function vInv(){
  if(R.length)h+='<h2>Останні документи</h2>'+R.map(function(x){return invCard(x,0)}).join("");
  return h}
 vmap.inv=vInv;
+vmap.sa=function(){return vActs()+vSa()};
 var _seg2=seg;seg=function(){var n=invPend().length;return _seg2().replace(/(<button class="b(?: g)?" data-skv="rcb")/,'<button class="b '+(view==="inv"?"":"g")+'" data-skv="inv" style="white-space:nowrap">📨 Накладні'+(n?" ("+n+")":"")+'</button>$1')};
 nav=function(){var n=pend().length+botRcs().length+invPend().length,b=document.querySelector('#nav [data-t="sk"]');if(b)b.textContent="Склад"+(n?" ("+n+")":"")};
 var _ro3=renderOv;renderOv=function(){_ro3();try{var n=invPend().length,c=$("ov")&&$("ov").querySelector(".c"),r=c&&c.querySelector(".row");if(n&&r)r.insertAdjacentHTML("afterend",'<div class="row" style="margin:6px 0"><button class="b g" data-go="inv" style="text-align:left;flex:1">📨 Накладних з пошти на перевірку: '+n+'</button></div>')}catch(e){}};
