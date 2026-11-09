@@ -614,7 +614,7 @@ function pubLater(){try{localStorage.setItem(PUBK,"1")}catch(e){}clearTimeout(pu
 function info(){if(!tok())return;api("/api/skx/info").then(function(j){SRV=j;if(view==="acc")render()}).catch(function(){})}
 
 /* ---- відображення ---- */
-function seg(){var V=[["bal","Залишки"],["ord","🛒 Замовлення"+(function(){try{var n=reorder().length;return n?" ("+n+")":""}catch(e){return ""}})()],["in","Прихід"],["rcb","Чеки з бота"+(botRcs().length?" ("+botRcs().length+")":"")],["tc","Техкарти"],["sa","Продажі"],["wo","Брак"],["ct","Підрахунки"],["its","Товари"],["new","Нові коди"+(pend().length?" ("+pend().length+")":"")],["acc","Доступ"]];
+function seg(){var V=[["bal","Залишки"],["ord","🛒 Замовлення"+(function(){try{var n=reorder().length;return n?" ("+n+")":""}catch(e){return ""}})()],["in","Прихід"],["rcb","Чеки з бота"+(botRcs().length?" ("+botRcs().length+")":"")],["tc","Техкарти"],["lu","🍱 Ланч"],["sa","Продажі"],["wo","Брак"],["ct","Підрахунки"],["its","Товари"],["new","Нові коди"+(pend().length?" ("+pend().length+")":"")],["acc","Доступ"]];
  return '<div class="row" style="gap:4px;overflow-x:auto;flex-wrap:nowrap">'+V.map(function(v){return '<button class="b '+(view===v[0]?"":"g")+'" data-skv="'+v[0]+'" style="white-space:nowrap">'+v[1]+'</button>'}).join("")+'<button class="b g" id="skpull" style="margin-left:auto;white-space:nowrap">🔄 Оновити</button></div>'}
 function vBal(){
  var by=calc(),q=(g("skq")&&g("skq").value)||"",ls=Object.keys(by).map(function(k){return by[k]}).filter(function(r){return !q||r.it.n.toLowerCase().indexOf(q.toLowerCase())>-1});
@@ -742,18 +742,19 @@ function vTc(){
 var TCW=null;
 function tcRows(){return TCW.ing.map(function(x,k){var it=x.i?itemById(x.i):null,us=unitsFor(it),du=x.du&&us.indexOf(x.du)>-1?x.du:(it?it.u:""),dq=x.du===du&&x.dq>0?x.dq:x.q,pt=pkTxt(it);
  return '<div class="row" data-ir="'+k+'"><select data-ii="'+k+'" style="flex:2;min-width:9em"><option value="">— товар —</option>'+items().map(function(i){return '<option value="'+E(i.id)+'"'+(i.id===x.i?" selected":"")+'>'+E(i.n)+' ('+E(i.u)+')</option>'}).join("")+'</select><input data-iq="'+k+'" inputmode="decimal" placeholder="Кількість" value="'+(dq>0?E(String(dq).replace(".",",")):"")+'" style="width:6em"><select data-iu="'+k+'" style="width:5.5em">'+(us.length?us:[""]).map(function(u){return '<option'+(u===du?" selected":"")+'>'+E(u)+'</option>'}).join("")+'</select><button class="b g" data-irdel="'+k+'" aria-label="Прибрати">✕</button></div>'+(it&&du!==it.u&&dq>0?'<div class="sub" style="margin:-4px 0 6px">= '+fm(convI(dq,du,it).q,4)+" "+E(it.u)+(pt?" ("+E(pt)+")":"")+'</div>':"")}).join("")}
-function tcGather(){TCW.n=g("tc-n").value;TCW.al=g("tc-al").value;TCW.pr=g("tc-pr").value;Array.prototype.forEach.call(document.querySelectorAll("#skd [data-ii]"),function(e){TCW.ing[+e.dataset.ii].i=e.value});Array.prototype.forEach.call(document.querySelectorAll("#skd [data-iq]"),function(e){var r=TCW.ing[+e.dataset.iq],us=document.querySelector('#skd [data-iu="'+e.dataset.iq+'"]'),it=r.i?itemById(r.i):null,u=us&&us.value||(it?it.u:""),v=num(e.value);r.dq=v;r.du=u;r.q=it&&u&&u!==it.u?convI(v,u,it).q:v})}
+function tcGather(){TCW.n=g("tc-n").value;TCW.al=g("tc-al").value;TCW.pr=g("tc-pr").value;if(g("tc-y"))TCW.y=g("tc-y").value;Array.prototype.forEach.call(document.querySelectorAll("#skd [data-ii]"),function(e){TCW.ing[+e.dataset.ii].i=e.value});Array.prototype.forEach.call(document.querySelectorAll("#skd [data-iq]"),function(e){var r=TCW.ing[+e.dataset.iq],us=document.querySelector('#skd [data-iu="'+e.dataset.iq+'"]'),it=r.i?itemById(r.i):null,u=us&&us.value||(it?it.u:""),v=num(e.value);r.dq=v;r.du=u;r.q=it&&u&&u!==it.u?convI(v,u,it).q:v})}
 function tcDraw(){var d=dlg(),id=TCW.id;
- d.innerHTML='<h2 style="margin-top:0">'+(id?"Техкарта":"Нова техкарта")+'</h2><label>Страва (як у звіті каси)<input id="tc-n" value="'+E(TCW.n)+'" autocomplete="off"></label><label>Інші назви в касі (через «;»)<input id="tc-al" value="'+E(TCW.al)+'" autocomplete="off"></label><label>Ціна продажу, '+E(CFG.cur)+'<input id="tc-pr" inputmode="decimal" value="'+E(TCW.pr)+'"></label><h2>Склад порції</h2>'+tcRows()+'<div class="row"><button class="b g" id="tc-addi">+ Інгредієнт</button></div><div class="row" style="margin-top:12px"><button class="b" id="tc-save">Зберегти</button><button class="b g" id="sk-close">Закрити</button>'+(id?'<button class="b g e" id="tc-del" style="margin-left:auto">Видалити</button>':"")+'</div>';
+ d.innerHTML='<h2 style="margin-top:0">'+(id?"Техкарта":"Нова техкарта")+'</h2><label>Страва (як у звіті каси)<input id="tc-n" value="'+E(TCW.n)+'" autocomplete="off"></label><label>Інші назви в касі (через «;»)<input id="tc-al" value="'+E(TCW.al)+'" autocomplete="off"></label><div class="row"><label style="flex:1">Ціна продажу, '+E(CFG.cur)+'<input id="tc-pr" inputmode="decimal" value="'+E(TCW.pr)+'"></label><label style="flex:1">Вихід порції, г (для ланчу)<input id="tc-y" inputmode="decimal" placeholder="напр. 350" value="'+E(TCW.y||"")+'"></label></div><h2>Склад порції</h2>'+tcRows()+'<div class="row"><button class="b g" id="tc-addi">+ Інгредієнт</button></div><div class="row" style="margin-top:12px"><button class="b" id="tc-save">Зберегти</button><button class="b g" id="sk-close">Закрити</button>'+(id?'<button class="b g e" id="tc-del" style="margin-left:auto">Видалити</button>':"")+'</div>';
  if(!d.open)d.showModal()}
-function openTc(id){var t=id?DOCS["sk:t:"+id]:null;TCW={id:id||"",n:t?t.n:"",al:t?t.al||"":"",pr:t&&t.pr>0?String(t.pr).replace(".",","):"",ing:t?(t.ing||[]).map(function(x){return{i:x.i,q:x.q,du:x.du||"",dq:x.dq||0}}):[{i:"",q:0}]};dlg().dataset.iid="";tcDraw()}
+function openTc(id){var t=id?DOCS["sk:t:"+id]:null;TCW={id:id||"",n:t?t.n:"",al:t?t.al||"":"",pr:t&&t.pr>0?String(t.pr).replace(".",","):"",y:t&&t.y>0?String(t.y).replace(".",","):"",ing:t?(t.ing||[]).map(function(x){return{i:x.i,q:x.q,du:x.du||"",dq:x.dq||0}}):[{i:"",q:0}]};dlg().dataset.iid="";tcDraw()}
 function tcSave(){
  tcGather();var n=TCW.n.trim().replace(/\s+/g," ").slice(0,60);if(!n){g("tc-n").focus();return}
  var ing=[],seen={};for(var k=0;k<TCW.ing.length;k++){var x=TCW.ing[k];if(!x.i&&!(x.q>0))continue;if(!x.i||!itemById(x.i)||!(x.q>0)){showErr("Кожен інгредієнт: оберіть товар і вкажіть кількість більше нуля.");return}var xi=itemById(x.i);if(x.du&&x.du!==xi.u&&!convI(1,x.du,xi).ok){showErr("«"+xi.n+"»: не можу перевести "+x.du+" у "+xi.u+". Вкажіть фасування в картці товару (напр. 1 шт = 900 мл).");return}if(seen[x.i]){showErr("Товар «"+inm(x.i)+"» вказано двічі. Об'єднайте в один рядок.");return}seen[x.i]=1;var ox={i:x.i,q:Math.round(x.q*1000000)/1000000};if(x.du&&x.du!==xi.u&&x.dq>0){ox.du=x.du;ox.dq=x.dq}ing.push(ox)}
  if(!ing.length){showErr("Додайте хоча б один інгредієнт.");return}
  var dup=tcs().filter(function(t){return t.id!==TCW.id&&nrm(t.n)===nrm(n)})[0];if(dup){showErr("Техкарта «"+n+"» уже є.");return}
  var pr=TCW.pr.trim()===""?0:num(TCW.pr);if(!(pr>=0)){showErr("Ціна має бути числом.");return}
- var id=TCW.id||nid(),o={n:n,al:String(TCW.al||"").split(";").map(function(a){return a.trim()}).filter(Boolean).join("; ").slice(0,200),pr:pr,ing:ing,ts:Date.now()};
+ var yy=String(TCW.y||"").trim()===""?0:num(TCW.y);if(!(yy>=0)){showErr("Вихід порції має бути числом (грами).");return}
+ var id=TCW.id||nid(),o={y:yy>0?yy:0,n:n,al:String(TCW.al||"").split(";").map(function(a){return a.trim()}).filter(Boolean).join("; ").slice(0,200),pr:pr,ing:ing,ts:Date.now()};
  DOCS["sk:t:"+id]=o;persist("sk:t:"+id,o);dlg().close();render();toast("Техкарту збережено")}
 async function tcDel(){var id=TCW.id,t=DOCS["sk:t:"+id];if(!t)return;dlg().close();if(!await ask("Видалити техкарту «"+t.n+"»?")){return}DOCS["sk:t:"+id]=Object.assign({},t,{del:1});persist("sk:t:"+id,DOCS["sk:t:"+id]);render();toast("Техкарту видалено")}
 
@@ -800,6 +801,59 @@ document.addEventListener("change",function(ev){var t=ev.target;if(!t)return;
  if(t.dataset&&t.dataset.oq){var q=num(t.value);ORDQ[t.dataset.oq]=Object.assign({},ORDQ[t.dataset.oq]||{},{q:q>0?q:0});render();return}
  if(t.dataset&&t.dataset.oon){ORDQ[t.dataset.oon]=Object.assign({},ORDQ[t.dataset.oon]||{},{off:!t.checked});render();return}});
 
+/* ---- v31: ланч дня — склад змінюється щодня, свій грамаж; списання за техкартами страв пропорційно грамам ---- */
+var LUW=null,LUM=null;
+function luTypes(){var c=DOCS["sk:lucfg"],L=(c&&c.t&&c.t.length)?c.t.slice():["Ланч 120","Ланч 190"];return L}
+function luRec(d){return DOCS["sk:lu:"+d]||null}
+function luFor(d){var r=luRec(d);if(r)return{r:r,d:d,own:1};var ks=Object.keys(DOCS).filter(function(k){return k.indexOf("sk:lu:")===0&&k.slice(6)<d}).sort();if(!ks.length)return null;var k=ks[ks.length-1];return{r:DOCS[k],d:k.slice(6),own:0}}
+function luType(nm){var n=nrm(nm),L=luTypes();for(var i=0;i<L.length;i++)if(nrm(L[i])===n)return L[i];var m=String(nm||"").match(/^\s*ланч\s*(\d+)\s*$/i);return m?"Ланч "+m[1]:""}
+var LUT={};
+function luMapRows(R){var out=[],unk=[],byI={};items().forEach(function(i){byI[nrm(i.n)]=i});(R||[]).forEach(function(r){var it=byI[nrm(r.n)];
+  if(it||r.u==="шт"){if(it)out.push({k:"i",id:it.id,g:r.g||1});else unk.push(r.n);return}
+  var id=luMatchTc(r.n);if(id)out.push({k:"t",id:id,g:r.u==="порц"?(r.g||1)*((DOCS["sk:t:"+id]||{}).y||1):(r.g||0)});else unk.push(r.n)});return{c:out,unk:unk}}
+function luActTy(d,t){var a=DOCS["sk:x:"+d],lu=a&&a.lu&&a.lu.ty;if(!lu)return null;var k=Object.keys(lu).filter(function(x){return nrm(x)===nrm(t)})[0];return k?luMapRows(lu[k]):null}
+function luComp(d,nm){var t=luType(nm);if(!t)return null;var own=luRec(d);if(own&&own.ty&&own.ty[t]&&own.ty[t].length)return own.ty[t];
+ var A=luActTy(d,t);if(A&&A.c.length)return A.c;var f=luFor(d);if(!f||!f.r.ty||!f.r.ty[t]||!f.r.ty[t].length)return null;return f.r.ty[t]}
+function luAdd(d,nm,q,need){var C=luComp(d,nm);if(!C)return false;
+ C.forEach(function(c){if(c.k==="t"){var t=DOCS["sk:t:"+c.id];if(!t)return;var f=t.y>0&&c.g>0?c.g/t.y:(c.g>0&&!(t.y>0)?c.g:1);(t.ing||[]).forEach(function(x){need[x.i]=(need[x.i]||0)+x.q*f*q})}
+  else if(c.k==="i"&&itemById(c.id))need[c.id]=(need[c.id]||0)+(c.g||0)*q});return true}
+function luTok(s){return nrm(s).split(" ").filter(function(w){return w.length>=3&&!/^\d+$/.test(w)}).map(function(w){return w.slice(0,5)})}
+function luMatchTc(name){var t=luTok(name);if(!t.length)return "";var best="",bs=0;tcs().forEach(function(x){if(/^ланч/i.test(x.n))return;var u=luTok(x.n);if(!u.length)return;var n=0;u.forEach(function(w){if(t.indexOf(w)>-1)n++});var sc=n/u.length;if(sc>bs){bs=sc;best=x.id}});return bs>=0.5?best:""}
+function luFromMenu(type){if(!LUM||!LUM.items)return null;var num0=(type.match(/\d+/)||[""])[0];
+ var it=LUM.items.filter(function(i){return /ланч/i.test(i.c+" "+i.n)&&(num0?Math.round(i.p/100)===+num0||String(i.n).indexOf(num0)>-1:true)})[0];if(!it)return null;
+ var txt=(it.d||it.n||""),parts=txt.split(/[,;+\n]|\sта\s|\sі\s/).map(function(x){return x.trim()}).filter(Boolean),rows=[];
+ parts.forEach(function(p){var m=p.match(/(\d+(?:[.,]\d+)?)\s*(г|гр|мл)(?![а-яіїєґa-z])/i),g0=m?num(m[1]):0,nm=p.replace(/(\d+(?:[.,]\d+)?)\s*(г|гр|мл)\.?/i,"").trim(),id=luMatchTc(nm);rows.push({k:id?"t":"",id:id,g:g0,src:p})});
+ return{rows:rows,txt:txt,n:it.n}}
+function vLu(){var d=(g("lud")&&g("lud").value)||today(),L=luTypes(),f=luFor(d);
+ if(!LUW||LUW.d!==d){LUW={d:d,ty:{},src:{}};L.forEach(function(t){var own=f&&f.own&&f.r.ty&&f.r.ty[t],tg=null;
+  if(!own){var src=LUT[d];if(src&&src.ty){var k=Object.keys(src.ty).filter(function(x){return nrm(x)===nrm(t)})[0];if(k)tg={rows:src.ty[k],d:src.d}}if(!tg){var A=DOCS["sk:x:"+d];if(A&&A.lu&&A.lu.ty){var k2=Object.keys(A.lu.ty).filter(function(x){return nrm(x)===nrm(t)})[0];if(k2)tg={rows:A.lu.ty[k2],d:A.lu.d}}}}
+  if(tg){var mp=luMapRows(tg.rows);LUW.ty[t]=mp.c.map(function(c){return Object.assign({},c)}).concat(mp.unk.map(function(n){return{k:"",id:"",g:0,src:n}}));LUW.src[t]="з Telegram"+(tg.d&&tg.d!==d?" (від "+dm(tg.d)+")":"")+": «"+tg.rows.map(function(r){return r.n+(r.g?" "+fm(r.g)+" "+(r.u||"г"):"")}).join(", ")+"»";return}
+  var m=!own&&d===today()?luFromMenu(t):null;
+  LUW.ty[t]=own?own.map(function(c){return Object.assign({},c)}):(m&&m.rows.length?m.rows.map(function(r){return{k:r.k,id:r.id,g:r.g,src:r.src}}):(f&&f.r.ty&&f.r.ty[t]?f.r.ty[t].map(function(c){return Object.assign({},c)}):[]));
+  LUW.src[t]=own?"збережено":m&&m.rows.length?"з меню дня: «"+m.txt+"»":f&&f.r.ty&&f.r.ty[t]?"скопійовано з "+dm(f.d)+" (не збережено)":"порожньо"})}
+ var h='<h2 style="margin-top:0">🍱 Склад ланчу</h2><p class="sub"><b>Найпростіше — у Telegram:</b> після публікації меню бот сам надсилає склад ланчу; виправити можна повідомленням <code>Ланч 190: борщ 250, котлета 120, компот 200</code> або командою /lunch. Тут — запасний варіант і перевірка.</p><p class="sub">У касі ланч пробивається однією позицією («Ланч 190»). Тут — що в нього входить сьогодні й скільки грамів. Акт списання розкладе кожен проданий ланч на ці страви: інгредієнти техкарти × (грами в ланчі ÷ вихід порції техкарти). Якщо на день не збережено — береться останній збережений склад.</p>';
+ h+='<div class="row"><label>Дата <input id="lud" type="date" value="'+E(d)+'"></label><button class="b g" id="lumenu">🔄 Підтягнути з меню дня</button></div>';
+ var opts=function(c){return '<option value="">— страва (техкарта) або товар —</option><optgroup label="Техкарти">'+tcs().filter(function(t){return !/^ланч/i.test(t.n)}).map(function(t){return '<option value="t:'+E(t.id)+'"'+(c.k==="t"&&c.id===t.id?" selected":"")+'>'+E(t.n)+(t.y>0?" ("+fm(t.y)+" г)":"")+'</option>'}).join("")+'</optgroup><optgroup label="Товари (контейнер, хліб…)">'+items().map(function(i){return '<option value="i:'+E(i.id)+'"'+(c.k==="i"&&c.id===i.id?" selected":"")+'>'+E(i.n)+' ('+E(i.u)+')</option>'}).join("")+'</optgroup>'};
+ L.forEach(function(t){var R=LUW.ty[t]||[];h+='<h2>'+E(t)+'</h2><p class="sub">'+E(LUW.src[t]||"")+'</p>';
+  h+=R.map(function(c,k){var tc=c.k==="t"?DOCS["sk:t:"+c.id]:null,it=c.k==="i"?itemById(c.id):null,lab=tc?(tc.y>0?"г":"порц."):it?it.u:"";
+   return '<div class="row"><select data-lus="'+E(t)+'|'+k+'" style="flex:2;min-width:12em">'+opts(c)+'</select><input data-lug="'+E(t)+'|'+k+'" inputmode="decimal" value="'+(c.g>0?E(String(c.g).replace(".",",")):"")+'" placeholder="'+(tc&&tc.y>0?"грами":"к-сть")+'" style="width:6em"><span class="sub" style="width:3.5em">'+E(lab)+'</span><button class="b g" data-lux="'+E(t)+'|'+k+'" aria-label="Прибрати">✕</button></div>'+(!c.k&&c.src?'<div class="sub e" style="margin:-4px 0 6px">«'+E(c.src)+'»: оберіть техкарту</div>':tc&&!(tc.y>0)?'<div class="sub e" style="margin:-4px 0 6px">У техкарті «'+E(tc.n)+'» не вказано вихід порції: число тут = кількість порцій</div>':"")}).join("");
+  h+='<div class="row"><button class="b g" data-lua="'+E(t)+'">+ Страва</button></div>'});
+ h+='<div class="row" style="margin-top:12px"><button class="b" id="lusave">Зберегти склад на '+dm(d)+'</button></div>';
+ h+='<details style="margin-top:14px"><summary class="sub">Типи ланчу в касі</summary><div class="row"><input id="lutypes" value="'+E(L.join("; "))+'" style="flex:1"><button class="b g" id="lutsave">Зберегти</button></div><p class="sub">Назви як у Checkbox, через «;». Число в назві = ціна: так програма знаходить ланч у меню дня.</p></details>';
+ return h}
+function luGather(){if(!LUW)return;Array.prototype.forEach.call(document.querySelectorAll("[data-lus]"),function(e){var a=e.dataset.lus.split("|"),c=LUW.ty[a[0]][+a[1]],v=e.value.split(":");c.k=v[0]||"";c.id=v[1]||""});
+ Array.prototype.forEach.call(document.querySelectorAll("[data-lug]"),function(e){var a=e.dataset.lug.split("|"),c=LUW.ty[a[0]][+a[1]],v=num(e.value);c.g=v>0?v:0})}
+function luSave(){luGather();var ty={},bad=[];Object.keys(LUW.ty).forEach(function(t){var R=LUW.ty[t].filter(function(c){return c.k&&c.id});LUW.ty[t].forEach(function(c){if(!c.k&&c.src)bad.push(c.src)});ty[t]=R.map(function(c){return{k:c.k,id:c.id,g:c.g||0}})});
+ var k="sk:lu:"+LUW.d;DOCS[k]={ty:ty,ts:Date.now()};saveMany([k]);var d=LUW.d;LUW=null;render();toast("Склад ланчу на "+dm(d)+" збережено"+(bad.length?". Без техкарти пропущено: "+bad.length:""));
+ var a=DOCS["sk:x:"+d];if(a&&typeof actApply==="function"){actApply(a);render()}}
+document.addEventListener("click",function(ev){var t=ev.target;if(!t||!t.closest)return;var el;
+ if(el=t.closest("[data-lua]")){luGather();LUW.ty[el.dataset.lua].push({k:"",id:"",g:0});render();return}
+ if(el=t.closest("[data-lux]")){luGather();var a=el.dataset.lux.split("|");LUW.ty[a[0]].splice(+a[1],1);render();return}
+ if(t.closest("#lusave")){luSave();return}
+ if(t.closest("#lutsave")){var L=g("lutypes").value.split(";").map(function(x){return x.trim()}).filter(Boolean);DOCS["sk:lucfg"]={t:L};saveMany(["sk:lucfg"]);LUW=null;render();toast("Типи ланчу збережено");return}
+ if(t.closest("#lumenu")){if(!tok()){toast("Потрібен токен у Налаштуваннях");return}api("/api/skx/menu").then(function(j){LUM=j;if(j.date&&j.date!==today())toast("Меню дня від "+dm(j.date));var d=LUW?LUW.d:today();LUW=null;var keep=luRec(d);if(keep){delete DOCS["sk:lu:"+d]}render();if(keep)DOCS["sk:lu:"+d]=keep}).catch(function(e){showErr("Меню: "+((e&&e.message)||"помилка")+"\nПотрібен воркер v82.")});return}});
+document.addEventListener("change",function(ev){var t=ev.target;if(!t)return;if(t.id==="lud"){LUW=null;render();return}if(t.dataset&&(t.dataset.lus!==undefined)){luGather();render()}});
+
 /* ---- v27: імпорт техкарт з тексту ---- */
 function tcImpUI(){return '<h2>Імпорт техкарт з тексту</h2><p class="sub">Одна страва в рядку: <code>Назва (як у касі) | ціна продажу | інгредієнт кількість одиниця; інгредієнт кількість одиниця | інші назви в касі</code>. Одиниці: г, кг, мл, л, шт, пак. Назви інгредієнтів мають точно збігатися з назвами товарів у «Товари» (великі/малі літери не важливі). Якщо техкарта з такою назвою вже є, її буде замінено.</p><textarea id="tcimp" placeholder="Капучіно | 45 | Кава зерно 9 г; Молоко сухе 17 г; Стакан 250 мл 1 шт; Цукор стік 1 шт"></textarea><div class="row"><button class="b g" id="tcimpgo">Додати техкарти з тексту</button></div>'}
 function tcImpParse(t){var out=[],err=[],byN={};items().forEach(function(i){byN[nrm(i.n)]=i});
@@ -841,6 +895,7 @@ function vSa(){
  if(SALE&&SALE.rows){var R=SALE.rows,okc=R.filter(function(r){return r.tc||r.it}).length,bad=R.length-okc;
   h+='<h2>Перевірка</h2><p class="sub">Знайдено: '+okc+' з '+R.length+(bad?'. Незнайдені не спишуться, поки ви не оберете техкарту.':'.')+'</p><div class="tw"><table><thead><tr><th>Назва в касі</th><th>К-сть</th><th>Списання</th></tr></thead><tbody>'+R.map(function(r,k){
    var cell;if(r.tc){var t=DOCS["sk:t:"+r.tc];cell=E(t?t.n:"")+' ('+t.ing.length+' інгр.)'}else if(r.it)cell='товар «'+E(inm(r.it))+'»';
+   else if(luComp(SALE.date||today(),r.nm))cell='🍱 склад ланчу (вкладка «Ланч»)';
    else cell='<select data-sasel="'+k+'"><option value="">— обрати техкарту —</option>'+tcs().map(function(t){return '<option value="'+E(t.id)+'">'+E(t.n)+'</option>'}).join("")+'</select> <button class="b g" data-saal="'+k+'">Запам’ятати</button>';
    return '<tr><td>'+E(r.nm)+'</td><td>'+fm(r.q)+'</td><td'+((r.tc||r.it)?'':' class="e"')+'>'+cell+'</td></tr>'}).join("")+'</tbody></table></div>';
   h+='<div class="row"><button class="b" id="saapply"'+(okc?"":" disabled")+'>Списати зі складу ('+okc+')</button></div>'}
@@ -905,7 +960,7 @@ async function readSales(fl){
 function saParse(){var d=g("sadate").value||today(),t=g("satext").value;SALE={date:d,text:t,rows:matchSales(parseSales(t))};if(!SALE.rows.length)toast("Не знайдено рядків «назва;кількість»");render()}
 async function saApply(){
  if(!SALE||!SALE.rows)return;var d=g("sadate").value||SALE.date,need={},unk=0;
- SALE.rows.forEach(function(r){if(r.tc){var t=DOCS["sk:t:"+r.tc];t.ing.forEach(function(x){need[x.i]=(need[x.i]||0)+x.q*r.q})}else if(r.it)need[r.it]=(need[r.it]||0)+r.q;else unk++});
+ SALE.rows.forEach(function(r){if(luAdd(d,r.nm,r.q,need))return;if(r.tc){var t=DOCS["sk:t:"+r.tc];t.ing.forEach(function(x){need[x.i]=(need[x.i]||0)+x.q*r.q})}else if(r.it)need[r.it]=(need[r.it]||0)+r.q;else unk++});
  var keys=Object.keys(need);if(!keys.length){toast("Нічого списувати");return}
  if(unk&&!await ask("Рядків без техкарти: "+unk+". Вони не будуть списані. Продовжити?"))return;
  var ds=d.replace(/-/g,""),ids=[],ts=new Date(d+"T23:00:00").getTime();
@@ -1029,11 +1084,13 @@ function tabNow(){return typeof tab!=="undefined"?tab:""}
 
 /* ---- v25: акти списання з Checkbox (продажі за зміну → списання інгредієнтів за техкартами) ---- */
 function acts(){return Object.keys(DOCS).filter(function(k){return k.indexOf("sk:x:")===0&&DOCS[k]&&DOCS[k].d}).map(function(k){return DOCS[k]}).sort(function(a,b){return a.d<b.d?1:-1})}
-function actRows(a){var m={};(a.rows||[]).concat(a.un||[]).forEach(function(r){var k=nrm(r.n);if(m[k])m[k].q+=r.q;else m[k]={nm:r.n,q:r.q}});return matchSales(Object.keys(m).map(function(k){return m[k]}))}
-function actUnkList(a){return actRows(a).filter(function(r){return !r.tc&&!r.it})}
+function actBqRows(a){var o=[];(a.bq||[]).forEach(function(b){(b.rows||[]).forEach(function(r){o.push(r)})});return o}
+function actRows(a){var m={};(a.rows||[]).concat(a.un||[],actBqRows(a)).forEach(function(r){var k=nrm(r.n);if(m[k])m[k].q+=r.q;else m[k]={nm:r.n,q:r.q}});return matchSales(Object.keys(m).map(function(k){return m[k]}))}
+function actUnkList(a){var o=actRows(a).filter(function(r){return !r.tc&&!r.it&&!luComp(a.d,r.nm)});
+ actRows(a).forEach(function(r){var t=luType(r.nm);if(!t)return;var own=luRec(a.d);if(own&&own.ty&&own.ty[t]&&own.ty[t].length)return;var A=luActTy(a.d,t);if(A)A.unk.forEach(function(n){o.push({nm:"🍱 "+t+": "+n,q:r.q})})});return o}
 function actUnk(){var n=0;acts().slice(0,7).forEach(function(a){n+=actUnkList(a).length});return n}
-function actApply(a){
- var need={};actRows(a).forEach(function(r){if(r.tc){var t=DOCS["sk:t:"+r.tc];if(t)(t.ing||[]).forEach(function(x){need[x.i]=(need[x.i]||0)+x.q*r.q})}else if(r.it)need[r.it]=(need[r.it]||0)+r.q});
+function actApply(a){DOCS["sk:x:"+a.d]=Object.assign({},DOCS["sk:x:"+a.d]||{},a);
+ var need={};actRows(a).forEach(function(r){if(luAdd(a.d,r.nm,r.q,need))return;if(r.tc){var t=DOCS["sk:t:"+r.tc];if(t)(t.ing||[]).forEach(function(x){need[x.i]=(need[x.i]||0)+x.q*r.q})}else if(r.it)need[r.it]=(need[r.it]||0)+r.q});
  var d=a.d,ds=d.replace(/-/g,""),ids=[],ts=new Date(d+"T23:00:00").getTime();
  moves().forEach(function(m){if(m.k==="sl"&&m.d===d&&!need[m.i]){DOCS[m.id]=Object.assign({},m,{del:1});delete DOCS[m.id].id;ids.push(m.id)}});
  var ni=0;Object.keys(need).forEach(function(i){if(!itemById(i))return;var id="sk:m:s"+ds+"-"+i;DOCS[id]={k:"sl",i:i,q:Math.round(need[i]*10000)/10000,r:"акт "+(a.no||""),w:"Checkbox",ts:ts,d:d};ids.push(id);ni++});
@@ -1044,7 +1101,7 @@ function vActs(){var L=acts().slice(0,14),h='<h2 style="margin-top:0">Акти �
  h+='<div class="row"><input id="actd" type="date" value="'+today()+'"><button class="b g" id="actmk">Створити акт з Checkbox за дату</button><button class="b g" id="actpull">🔄 Забрати акти</button></div>';
  if(!L.length)return h+'<div class="note">Актів ще немає. Перший з’явиться після закриття зміни в Checkbox.</div><hr style="border:0;border-top:1px solid var(--line);margin:18px 0">';
  h+='<div class="tw"><table><thead><tr><th>Дата</th><th>Акт</th><th>Позицій</th><th>Продано на</th><th>Списано товарів</th><th>Без техкарти</th><th></th></tr></thead><tbody>'+L.map(function(a){var u=actUnkList(a);
-  return '<tr><td>'+dm(a.d)+'</td><td>'+E(a.no)+'</td><td>'+(a.rows||[]).length+((a.un||[]).length?'<br><small class="sub">+ неоплач. '+(a.un||[]).length+'</small>':"")+'</td><td>'+mny((a.tot||0)/100)+((a.un||[]).length?'<br><small class="sub">+ '+mny((a.unSum||0)/100)+' неоплач.</small>':"")+'</td><td>'+(a.ni||0)+'</td><td'+(u.length?' class="e" style="text-align:left"':"")+'>'+(u.length?u.length+": "+E(u.slice(0,3).map(function(r){return r.nm}).join(", ")+(u.length>3?"…":"")):"—")+'</td><td style="white-space:nowrap"><button class="b g" data-actp="'+E(a.d)+'">🖨 Акт</button>'+(u.length?' <button class="b g" data-acto="'+E(a.d)+'">Прив’язати</button>':"")+' <button class="b g" data-acta="'+E(a.d)+'">Застосувати знову</button></td></tr>'}).join("")+'</tbody></table></div>';
+  return '<tr><td>'+dm(a.d)+'</td><td>'+E(a.no)+'</td><td>'+(a.rows||[]).length+((a.un||[]).length?'<br><small class="sub">+ неоплач. '+(a.un||[]).length+'</small>':"")+((a.bq||[]).length?'<br><small class="sub">+ банкет: '+(a.bq||[]).map(function(b){return E(b.name)+(b.rows&&b.rows.length?"":" ⚠ без меню")}).join(", ")+'</small>':"")+'</td><td>'+mny((a.tot||0)/100)+((a.un||[]).length?'<br><small class="sub">+ '+mny((a.unSum||0)/100)+' неоплач.</small>':"")+'</td><td>'+(a.ni||0)+'</td><td'+(u.length?' class="e" style="text-align:left"':"")+'>'+(u.length?u.length+": "+E(u.slice(0,3).map(function(r){return r.nm}).join(", ")+(u.length>3?"…":"")):"—")+'</td><td style="white-space:nowrap"><button class="b g" data-actp="'+E(a.d)+'">🖨 Акт</button>'+(u.length?' <button class="b g" data-acto="'+E(a.d)+'">Прив’язати</button>':"")+' <button class="b g" data-acta="'+E(a.d)+'">Застосувати знову</button></td></tr>'}).join("")+'</tbody></table></div>';
  return h+'<hr style="border:0;border-top:1px solid var(--line);margin:18px 0">'}
 function actPrint(d){var a=DOCS["sk:x:"+d];if(!a)return;var w=window.open("","_blank");if(!w){showErr("Браузер заблокував нове вікно. Дозвольте спливні вікна для цього сайту.");return}
  var sl=moves().filter(function(m){return m.k==="sl"&&m.d===d}).map(function(m){var it=itemById(m.i);return{n:inm(m.i),q:m.q,u:inu(m.i),c:it&&it.p?m.q*it.p:0}}).sort(function(x,y){return x.n.localeCompare(y.n,"uk")}),sc=sl.reduce(function(s,x){return s+x.c},0);
@@ -1052,6 +1109,7 @@ function actPrint(d){var a=DOCS["sk:x:"+d];if(!a)return;var w=window.open("","_b
  var h='<!DOCTYPE html><html lang="uk"><head><meta charset="utf-8"><title>Акт списання '+E(a.no)+'</title><style>'+css+'</style></head><body><button onclick="print()">🖨 Друкувати</button>';
  h+='<h1>Акт списання № '+E(a.no)+' від '+dm(d).replace(/\.(\d\d)$/,".20$1")+'</h1><div>Кооператив «Латте», вул. Френчка, 2</div><div>Підстава: продажі за зміну Checkbox'+(a.sh&&a.sh.serial?" № "+E(a.sh.serial):"")+(a.n?" (чеків: "+a.n+")":"")+'</div>';
  h+='<h2 style="font-size:15px">1. Продано за день</h2><table><tr><th>№</th><th>Найменування</th><th class="r">Кількість</th><th class="r">Сума</th></tr>'+(a.rows||[]).map(function(r,i){return '<tr><td>'+(i+1)+'</td><td>'+E(r.n)+'</td><td class="r">'+fm(r.q)+'</td><td class="r">'+mny((r.s||0)/100)+'</td></tr>'}).join("")+'<tr><td></td><td><b>Разом</b></td><td></td><td class="r"><b>'+mny((a.tot||0)/100)+'</b></td></tr></table>';
+ (a.bq||[]).forEach(function(b){h+='<h2 style="font-size:15px">1в. Банкет: '+E(b.name)+' ('+(b.g||0)+' гостей)</h2>'+((b.rows||[]).length?'<table><tr><th>№</th><th>Страва</th><th class="r">Кількість</th></tr>'+b.rows.map(function(r,i){return '<tr><td>'+(i+1)+'</td><td>'+E(r.n)+'</td><td class="r">'+fm(r.q)+'</td></tr>'}).join("")+'</table>':'<p>Меню банкету не внесено, нічого не списано.</p>')});
  if((a.un||[]).length)h+='<h2 style="font-size:15px">1б. Видано без оплати (неоплачені замовлення'+(a.unT&&a.unT.length?", "+(a.unT.length>1?"столи ":"стіл ")+E(a.unT.join(", ")):"")+')</h2><table><tr><th>№</th><th>Найменування</th><th class="r">Кількість</th><th class="r">Сума</th></tr>'+a.un.map(function(r,i){return '<tr><td>'+(i+1)+'</td><td>'+E(r.n)+'</td><td class="r">'+fm(r.q)+'</td><td class="r">'+mny((r.s||0)/100)+'</td></tr>'}).join("")+'<tr><td></td><td><b>Разом</b></td><td></td><td class="r"><b>'+mny((a.unSum||0)/100)+'</b></td></tr></table>';
  h+='<h2 style="font-size:15px">2. Списано зі складу (інгредієнти за техкартами)</h2>'+(sl.length?'<table><tr><th>№</th><th>Товар</th><th class="r">Кількість</th><th>Од.</th><th class="r">Собівартість</th></tr>'+sl.map(function(x,i){return '<tr><td>'+(i+1)+'</td><td>'+E(x.n)+'</td><td class="r">'+fm(x.q)+'</td><td>'+E(x.u)+'</td><td class="r">'+(x.c?mny(x.c):"—")+'</td></tr>'}).join("")+'<tr><td></td><td><b>Разом</b></td><td></td><td></td><td class="r"><b>'+mny(sc)+'</b></td></tr></table>':'<p>Нічого не списано: для проданих позицій немає техкарт.</p>');
  var u=actUnkList(a);if(u.length)h+='<p>Не списано (немає техкарти): '+E(u.map(function(r){return r.nm+" — "+fm(r.q)}).join("; "))+'</p>';
@@ -1060,7 +1118,7 @@ function actPrint(d){var a=DOCS["sk:x:"+d];if(!a)return;var w=window.open("","_b
 document.addEventListener("click",async function(ev){var t=ev.target;if(!t||!t.closest)return;var el;
  if(el=t.closest("[data-actp]")){actPrint(el.dataset.actp);return}
  if(el=t.closest("[data-acta]")){var a=DOCS["sk:x:"+el.dataset.acta];if(a){var n=actApply(a);render();toast("Акт "+a.no+": списано товарів складу "+n)}return}
- if(el=t.closest("[data-acto]")){var a2=DOCS["sk:x:"+el.dataset.acto];if(a2){SALE={date:a2.d,text:(a2.rows||[]).concat(a2.un||[]).map(function(r){return r.n+";"+String(r.q).replace(".",",")}).join("\n"),rows:actRows(a2)};render();setTimeout(function(){var x=g("saapply");if(x)x.scrollIntoView({block:"center"})},50)}return}
+ if(el=t.closest("[data-acto]")){var a2=DOCS["sk:x:"+el.dataset.acto];if(a2){SALE={date:a2.d,text:(a2.rows||[]).concat(a2.un||[],actBqRows(a2)).map(function(r){return r.n+";"+String(r.q).replace(".",",")}).join("\n"),rows:actRows(a2)};render();setTimeout(function(){var x=g("saapply");if(x)x.scrollIntoView({block:"center"})},50)}return}
  if(t.closest("#actpull")){try{var n2=await pullActs();render();toast(n2?"Нових актів: "+n2:"Нових актів немає")}catch(e){showErr("Акти: "+((e&&e.message)||"помилка"))}return}
  if(t.closest("#actmk")){var d=g("actd").value||today();toast("Запитую Checkbox…",0,1);try{await api("/api/skx/act",{d:d});var n3=await pullActs();render();toast("Акт за "+dm(d)+" створено"+(n3?" і застосовано":""))}catch(e){g("toast").hidden=true;showErr("Акт: "+((e&&e.message)||"помилка")+(/404|Не знайдено/.test((e&&e.message)||"")?"\nПотрібен воркер v76 або новіший.":""))}return}
 });
@@ -1183,7 +1241,7 @@ document.addEventListener("click",async function(ev){
  var t=ev.target;if(!t||!t.closest)return;var el;
  if(el=t.closest("[data-rcb]")){rcbOpen(el.dataset.rcb);return}
  if(el=t.closest("[data-rcbx]")){if(await ask("Пропустити цей чек? На склад він не потрапить."))rcbSkip(el.dataset.rcbx);return}
- if(el=t.closest("[data-skv]")){view=el.dataset.skv;try{localStorage.setItem(VW,view)}catch(e){}render();if(view==="acc")info();return}
+ if(el=t.closest("[data-skv]")){if(el.dataset.skv==="lu"&&tok()){if(!LUM)api("/api/skx/menu").then(function(j){LUM=j;LUW=null;if(view==="lu")render()}).catch(function(){});var dd=today();api("/api/skx/lunch?d="+dd).then(function(j){if(j&&j.lu){LUT[dd]=j.lu;LUW=null;if(view==="lu")render()}}).catch(function(){})}view=el.dataset.skv;try{localStorage.setItem(VW,view)}catch(e){}render();if(view==="acc")info();return}
  if(t.closest("#skpull")){pull(1);return}
  if(el=t.closest("tr[data-iid]")){openItem(el.dataset.iid);return}
  if(t.closest("#skadd")){openItem("");return}
@@ -1462,6 +1520,7 @@ vmap.inv=vInv;
 vmap.sa=function(){return vActs()+vSa()};
 vmap.tc=function(){return vTc()+tcImpUI()};
 vmap.ord=vOrd;
+vmap.lu=vLu;
 var _seg2=seg;seg=function(){var n=invPend().length;return _seg2().replace(/(<button class="b(?: g)?" data-skv="rcb")/,'<button class="b '+(view==="inv"?"":"g")+'" data-skv="inv" style="white-space:nowrap">📨 Накладні'+(n?" ("+n+")":"")+'</button>$1')};
 nav=function(){var n=pend().length+botRcs().length+invPend().length,b=document.querySelector('#nav [data-t="sk"]');if(b)b.textContent="Склад"+(n?" ("+n+")":"")};
 var _ro3=renderOv;renderOv=function(){_ro3();try{var n=invPend().length,c=$("ov")&&$("ov").querySelector(".c"),r=c&&c.querySelector(".row");if(n&&r)r.insertAdjacentHTML("afterend",'<div class="row" style="margin:6px 0"><button class="b g" data-go="inv" style="text-align:left;flex:1">📨 Накладних з пошти на перевірку: '+n+'</button></div>')}catch(e){}};
