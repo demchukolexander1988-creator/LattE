@@ -809,8 +809,10 @@ function luFor(d){var r=luRec(d);if(r)return{r:r,d:d,own:1};var ks=Object.keys(D
 function luType(nm){var n=nrm(nm),L=luTypes();for(var i=0;i<L.length;i++)if(nrm(L[i])===n)return L[i];var m=String(nm||"").match(/^\s*ланч\s*(\d+)\s*$/i);return m?"Ланч "+m[1]:""}
 var LUT={};
 function luMapRows(R){var out=[],unk=[],byI={};items().forEach(function(i){byI[nrm(i.n)]=i});(R||[]).forEach(function(r){var it=byI[nrm(r.n)];
-  if(it||r.u==="шт"){if(it)out.push({k:"i",id:it.id,g:r.g||1});else unk.push(r.n);return}
-  var id=luMatchTc(r.n);if(id)out.push({k:"t",id:id,g:r.u==="порц"?(r.g||1)*((DOCS["sk:t:"+id]||{}).y||1):(r.g||0)});else unk.push(r.n)});return{c:out,unk:unk}}
+  var f=r.f>0?r.f:1;
+  if(it||r.u==="шт"){if(it)out.push({k:"i",id:it.id,g:(r.g||1)*f});else unk.push(r.n);return}
+  var id=luMatchTc(r.n);if(!id){unk.push(r.n);return}var y=(DOCS["sk:t:"+id]||{}).y||0;
+  out.push({k:"t",id:id,g:r.u==="порц"?(r.g||1)*(y>0?y:1)*f:y>0?(r.g>0?r.g*f:y*f):f})});return{c:out,unk:unk}}
 function luActTy(d,t){var a=DOCS["sk:x:"+d],lu=a&&a.lu&&a.lu.ty;if(!lu)return null;var k=Object.keys(lu).filter(function(x){return nrm(x)===nrm(t)})[0];return k?luMapRows(lu[k]):null}
 function luComp(d,nm){var t=luType(nm);if(!t)return null;var own=luRec(d);if(own&&own.ty&&own.ty[t]&&own.ty[t].length)return own.ty[t];
  var A=luActTy(d,t);if(A&&A.c.length)return A.c;var f=luFor(d);if(!f||!f.r.ty||!f.r.ty[t]||!f.r.ty[t].length)return null;return f.r.ty[t]}
