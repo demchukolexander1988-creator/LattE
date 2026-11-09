@@ -684,7 +684,7 @@ function vNew(){
  if(!ps.length)return '<div class="note">Нових штрихкодів немає. Коли персонал сканує товар, якого немає в каталозі, він з’явиться тут: прив’яжіть його до товару або створіть новий.</div>';
  return '<p class="sub">Ці записи надіслав персонал для товарів, яких немає в каталозі. Кількість зараховується до товару, коли ви його оберете. Назву можна виправити перед «Створити товар».</p>'+ps.map(function(p){
   return '<div class="c" style="margin:8px 0"><div class="row"><input data-nmi="'+E(p.id)+'" value="'+E(/^Без назви/.test(p.nm)?"":p.nm)+'" placeholder="'+E(p.nm)+'" style="flex:1;min-width:12em" autocomplete="off">'+(p.b&&/^\d{8,14}$/.test(p.b)?'<button class="b g" data-offn="'+E(p.id)+'" title="Знайти назву у відкритій базі товарів">🔎 Назва</button>':"")+'</div><div class="sub">'+(p.m==="ct"?"Підрахунок: ":p.m==="in"?"Прихід: ":"Брак: ")+fm(p.q)+" "+E(p.u)+(p.r&&p.m==="wo"?" ("+E(p.r)+")":"")+(p.l?" · 📍 "+E(p.l):"")+" · "+E(p.w)+" · "+dm(p.d)+" "+kt(p.ts)+(p.b?" · код "+E(p.b):"")+'</div>'
-  +'<div class="row"><select data-bsel="'+E(p.id)+'"><option value="">— обрати існуючий товар —</option>'+items().map(function(i){return '<option value="'+E(i.id)+'">'+E(i.n)+'</option>'}).join("")+'</select><button class="b g" data-bind="'+E(p.id)+'">Прив’язати</button><button class="b" data-mk="'+E(p.id)+'">Створити товар</button><button class="b g" data-ign="'+E(p.id)+'">Прибрати</button></div></div>'}).join("")}
+  +(function(){var sm=matchItem(p.nm);return sm&&!/^Без назви/.test(p.nm)?'<div class="sub" style="color:var(--acc)">💡 Схоже на «'+E(inm(sm))+'» — якщо це той самий товар, натисніть «Прив’язати», а не «Створити».</div>':""})()+'<div class="row"><select data-bsel="'+E(p.id)+'"><option value="">— обрати існуючий товар —</option>'+items().map(function(i){var sm=/^Без назви/.test(p.nm)?"":matchItem(p.nm);return '<option value="'+E(i.id)+'"'+(sm===i.id?" selected":"")+'>'+E(i.n)+'</option>'}).join("")+'</select><button class="b g" data-bind="'+E(p.id)+'">Прив’язати</button><button class="b" data-mk="'+E(p.id)+'">Створити товар</button><button class="b g" data-ign="'+E(p.id)+'">Прибрати</button></div></div>'}).join("")}
 function vAcc(){
  var u=srv()+"/scan",code=localStorage.getItem(SCODE)||"",n=SRV&&SRV.n!=null?SRV.n:null,pin=SRV?SRV.pin:null;
  var h='<h2 style="margin-top:0">Сторінка сканера для персоналу й адміністрації</h2>';
@@ -1141,6 +1141,7 @@ function openItem(id){
   h+='<h2>Історія</h2><div class="cards"><div class="c"><small>Останній підрахунок</small><b>'+(by.last?fm(by.last.q)+" "+E(it.u):"—")+'</b></div><div class="c"><small>Розрахунково</small><b>'+(by.calc!=null?fm(by.calc)+" "+E(it.u):"—")+'</b></div><div class="c"><small>Брак за 30 днів</small><b class="e">'+fm(by.wo30)+" "+E(it.u)+'</b>'+(it.p>0?'<small>'+mny(by.wo30c)+'</small>':"")+'</div></div>';
   var hist=by.ct.concat(by.wo,by.inn,by.sl).sort(function(a,b){return b.ts-a.ts}).slice(0,30);
   h+=hist.length?'<div class="tw"><table><tbody>'+hist.map(function(m){return '<tr><td>'+dm(m.d)+' '+kt(m.ts)+'</td><td>'+(m.k==="ct"?"підрахунок":m.k==="in"?"прихід":m.k==="sl"?"продаж":"брак")+'</td><td>'+fm(m.q)+" "+E(it.u)+'</td><td style="text-align:left">'+E(mnote(m))+'</td><td>'+E(m.w)+'</td></tr>'}).join("")+'</tbody></table></div>':'<p class="sub">Записів ще немає.</p>'}
+ if(id){var others=items().filter(function(x){return x.id!==id});if(others.length)h+='<details style="margin-top:10px"><summary class="sub">Це дубль іншого товару? Об’єднати</summary><p class="sub">Усі прихід, брак, підрахунки, продажі, штрихкоди, техкарти й склад ланчу цього товару перейдуть до обраного, а цю картку буде видалено.</p><div class="row"><select id="sk-mto" style="flex:1"><option value="">— куди перенести —</option>'+others.map(function(x){var sm=matchItem(it.n);return '<option value="'+E(x.id)+'"'+(sm===x.id?" selected":"")+'>'+E(x.n)+' ('+E(x.u)+')</option>'}).join("")+'</select><button class="b g" id="sk-merge">Об’єднати</button></div></details>'}
  h+='<div class="row" style="margin-top:12px"><button class="b" id="sk-save">Зберегти</button><button class="b g" id="sk-close">Закрити</button>'+(id?'<button class="b g e" id="sk-del" style="margin-left:auto">Видалити товар</button>':"")+'</div>';
  d.innerHTML=h;d.dataset.iid=id||"";d.showModal();setTimeout(function(){g(id?"sk-min":"sk-n").focus()},50)}
 function saveItem(){
@@ -1154,6 +1155,20 @@ function saveItem(){
  var pk=g("sk-pk").value.trim()===""?0:num(g("sk-pk").value),pu=g("sk-pu").value;if(!(pk>=0)){showErr("Фасування має бути числом, наприклад 900.");return}if(pk>0&&!pu){showErr("Оберіть одиницю фасування (мл, г…).");return}if(pk>0&&pu===u){showErr("Фасування має бути в іншій одиниці, ніж сам товар.");return}
  var nid2=id||nid(),o2=Object.assign({},id?DOCS["sk:i:"+id]:{},{n:n,u:u,bc:b,min:mn,p:p,pk:pk>0?pk:0,pu:pk>0?pu:"",mo:(function(){var x=num(g("sk-mo").value);return x>0?x:0})(),v:g("sk-v").value.trim().replace(/\s+/g," ").slice(0,40),ts:Date.now()});DOCS["sk:i:"+nid2]=o2;persist("sk:i:"+nid2,o2);
  d.close();pubLater();render();toast("Товар збережено")}
+async function mergeItem(){var d=dlg(),from=d.dataset.iid,to=g("sk-mto")&&g("sk-mto").value,A=itemById(from),B=itemById(to);if(!A||!B){toast("Оберіть товар, куди перенести");return}
+ var k1=convI(1,A.u,B);if(A.u!==B.u&&!k1.ok){showErr("Не можу перевести «"+A.u+"» у «"+B.u+"». Вкажіть фасування в картці «"+B.n+"» (напр. 1 шт = 900 мл) або змініть одиницю, і спробуйте ще раз.");return}
+ var f=A.u===B.u?1:k1.q;d.close();var okb=g("cok"),okt=okb?okb.textContent:"";if(okb)okb.textContent="Так, об’єднати";var y=await ask("Перенести все з «"+A.n+"» у «"+B.n+"»"+(f!==1?" (1 "+A.u+" = "+fm(f,4)+" "+B.u+")":"")+" і видалити «"+A.n+"»?");if(okb)okb.textContent=okt;if(!y){d.showModal();return}
+ var ids=[],nm=0;
+ Object.keys(DOCS).forEach(function(k){var o=DOCS[k];if(!o)return;
+  if(k.indexOf("sk:m:")===0&&o.i===from){DOCS[k]=Object.assign({},o,{i:to,q:Math.round(o.q*f*10000)/10000});ids.push(k);nm++}
+  else if(k.indexOf("sk:t:")===0&&(o.ing||[]).some(function(x){return x.i===from})){var ing=[],at={};(o.ing||[]).forEach(function(x){var q=x.i===from?x.q*f:x.q,i=x.i===from?to:x.i;if(at[i]){at[i].q=Math.round((at[i].q+q)*1000000)/1000000;delete at[i].du;delete at[i].dq}else{var z={i:i,q:Math.round(q*1000000)/1000000};if(x.i!==from&&x.du){z.du=x.du;z.dq=x.dq}at[i]=z;ing.push(z)}});DOCS[k]=Object.assign({},o,{ing:ing});ids.push(k)}
+  else if(k.indexOf("sk:a:")===0&&o.i===from){DOCS[k]={i:to};ids.push(k)}
+  else if(k.indexOf("sk:lu:")===0&&o.ty){var ch=0,ty={};Object.keys(o.ty).forEach(function(t){ty[t]=(o.ty[t]||[]).map(function(c){if(c.k==="i"&&c.id===from){ch=1;return Object.assign({},c,{id:to,g:(c.g||0)*f})}return c})});if(ch){DOCS[k]=Object.assign({},o,{ty:ty});ids.push(k)}}
+  else if(k.indexOf("pr:p:")===0&&o.item===from){DOCS[k]=Object.assign({},o,{item:to});ids.push(k)}});
+ var bc=(B.bc||[]).slice();(A.bc||[]).forEach(function(c){if(bc.indexOf(c)<0)bc.push(c)});
+ DOCS["sk:i:"+to]=Object.assign({},DOCS["sk:i:"+to],{bc:bc,min:B.min||A.min||0,p:B.p||A.p||0,v:B.v||A.v||""});ids.push("sk:i:"+to);
+ var ak=aliasKey(A.n);if(ak.length>8&&!DOCS[ak]){DOCS[ak]={i:to};ids.push(ak)}
+ saveMany(ids);delete DOCS["sk:i:"+from];persist("sk:i:"+from,null);pubLater();render();toast("Об’єднано: записів перенесено "+nm+", «"+A.n+"» видалено")}
 async function delItem(){
  var d=dlg(),id=d.dataset.iid,it=itemById(id);if(!it)return;
  d.close();if(!await ask("Видалити товар «"+it.n+"» з каталогу? Історія записів залишиться.")){d.showModal();return}
@@ -1174,6 +1189,9 @@ function resolve(pid,itemId){
  if(p.b&&!bcOwner(p.b,"")){var o=Object.assign({},DOCS["sk:i:"+itemId],{bc:(it.bc||[]).concat([p.b]),ts:Date.now()});DOCS["sk:i:"+itemId]=o;ids.push("sk:i:"+itemId)}
  var mid="sk:m:"+pid.slice(5);DOCS[mid]={k:p.m,i:itemId,q:p.q,r:p.r||"",w:p.w||"",b:p.b||"",l:p.l||"",ts:p.ts,d:p.d};ids.push(mid);
  DOCS[pid]=Object.assign({},p,{done:1});ids.push(pid);saveMany(ids);pubLater();render();toast("Записано до товару «"+it.n+"»")}
+async function mkItemSafe(pid){var p=DOCS[pid];if(!p)return;var ni=document.querySelector('[data-nmi="'+pid+'"]'),nm=((ni?ni.value:p.nm)||"").trim(),sm=nm?matchItem(nm):"";
+ if(sm){var okb=g("cok"),okt=okb?okb.textContent:"";if(okb)okb.textContent="Так, це інший товар";var y=await ask("Схожий товар уже є: «"+inm(sm)+"». Якщо це той самий товар, натисніть «Скасувати» і «Прив’язати». Створити окремий товар «"+nm+"»?");if(okb)okb.textContent=okt;if(!y)return}
+ mkItem(pid)}
 function mkItem(pid){
  var p=DOCS[pid];if(!p)return;var ni=document.querySelector('[data-nmi="'+pid+'"]'),nm=((ni?ni.value:p.nm)||"").trim().replace(/\s+/g," ").slice(0,60);if(!nm&&!/^Без назви/.test(p.nm||""))nm=String(p.nm||"").slice(0,60);
  if(!nm){toast("Впишіть назву товару (або натисніть «🔎 Назва»)");if(ni)ni.focus();return}
@@ -1269,10 +1287,11 @@ document.addEventListener("click",async function(ev){
  if(t.closest("#sk-save")){saveItem();return}
  if(t.closest("#sk-close")){dlg().close();return}
  if(t.closest("#sk-del")){delItem();return}
+ if(t.closest("#sk-merge")){mergeItem();return}
  if(el=t.closest("[data-mdel]")){mdel(el.dataset.mdel);return}
  if(el=t.closest("[data-mdels]")){var dl=el.dataset.mdels.split(",").filter(function(x){return DOCS[x]});if(!dl.length)return;if(!await ask("Видалити підрахунок «"+inm(DOCS[dl[0]].i)+"» у цій інвентаризації (записів: "+dl.length+")?"))return;dl.forEach(function(x){DOCS[x]=Object.assign({},DOCS[x],{del:1})});saveMany(dl);render();return}
  if(el=t.closest("[data-bind]")){var s=document.querySelector('[data-bsel="'+el.dataset.bind+'"]');if(!s||!s.value){toast("Оберіть товар у списку");return}resolve(el.dataset.bind,s.value);return}
- if(el=t.closest("[data-mk]")){mkItem(el.dataset.mk);return}
+ if(el=t.closest("[data-mk]")){mkItemSafe(el.dataset.mk);return}
  if(el=t.closest("[data-offn]")){var pp=DOCS[el.dataset.offn],inp=document.querySelector('[data-nmi="'+el.dataset.offn+'"]');if(!pp||!inp)return;el.disabled=true;el.textContent="…";offName(pp.b).then(function(n){el.disabled=false;el.textContent="🔎 Назва";if(n){inp.value=n;toast("Знайдено: "+n)}else toast("У відкритій базі цього коду немає")});return}
  if(el=t.closest("[data-ign]")){if(await ask("Прибрати цей запис без зарахування?"))ignore(el.dataset.ign);return}
  if(t.closest("#skcopy")){var u=srv()+"/scan";try{await navigator.clipboard.writeText(u);toast("Посилання скопійовано")}catch(e){showErr(u)}return}
