@@ -161,6 +161,34 @@ dialog{width:100vw;max-width:100vw;margin:auto 0 0;border-radius:24px 24px 0 0;m
 @media print{.side,nav#nav{display:none!important}.w.app{display:block}.main{padding:0}}
 
 .sub b{font-size:inherit;font-weight:700;color:var(--tx,inherit)}
+
+/* ---- v38: клікабельні блоки, підвкладки в кілька рядків, «Ще» ---- */
+#ov .cards .c,#st .cards .c,#ov .bar,#st .bar,#ov .row .sub b.i,#ov .row .sub b.e{cursor:pointer}
+#ov .cards .c,#st .cards .c{transition:transform .15s,border-color .15s,box-shadow .15s}
+#ov .cards .c:hover,#st .cards .c:hover{transform:translateY(-2px);border-color:var(--gold2)}
+#ov .bar,#st .bar{border-radius:10px;transition:background .15s}
+#ov .bar:hover,#st .bar:hover{background:color-mix(in srgb,var(--gold) 12%,transparent)}
+#ov .bar>span:first-child::after,#st .bar>span:first-child::after{content:" ›";color:var(--gold)}
+.segrow{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.segrow .b{white-space:normal!important;line-height:1.15;text-align:center}
+.segrow #skpull{margin-left:auto}
+#more,#morepop{display:none}
+nav#nav [data-t=more]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23000'%3E%3Ccircle cx='5' cy='12' r='2'/%3E%3Ccircle cx='12' cy='12' r='2'/%3E%3Ccircle cx='19' cy='12' r='2'/%3E%3C/svg%3E")}
+@media (max-width:760px){
+ .segrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+ .segrow .b{padding:10px 4px;font-size:.8rem;min-height:44px;display:flex;align-items:center;justify-content:center}
+ .segrow #skpull{margin-left:0}
+ nav#nav{overflow:visible}
+ nav#nav button{flex:1 1 0!important;min-width:0!important;padding:7px 2px!important;font-size:.62rem!important}
+ nav#nav [data-t=pay],nav#nav [data-t=pr],nav#nav [data-t=set]{display:none}
+ nav#nav [data-t=sk]{order:5}
+ nav#nav #more{display:flex;order:6}
+ #morepop{position:fixed;right:10px;bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:30;min-width:220px;padding:8px;border-radius:18px;background:var(--side-bg);border:1px solid #ffffff22;box-shadow:0 14px 40px #000a}
+ #morepop:not([hidden]){display:block}
+ #morepop button{display:flex;align-items:center;gap:12px;width:100%;padding:13px 14px;border-radius:12px;background:none;border:0;color:var(--side-ink);font-size:1rem;font-weight:600;text-align:left}
+ #morepop button:active,#morepop button[aria-selected=true]{background:#d9ad6326;color:#fff}
+ #morepop button::before{content:"";flex:none;width:22px;height:22px;background:var(--gold2);-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}
+}
 </style>
 </head>
 <body>
@@ -717,8 +745,8 @@ function pubLater(){try{localStorage.setItem(PUBK,"1")}catch(e){}clearTimeout(pu
 function info(){if(!tok())return;api("/api/skx/info").then(function(j){SRV=j;if(view==="acc")render()}).catch(function(){})}
 
 /* ---- відображення ---- */
-function seg(){var V=[["bal","Залишки"],["ord","🛒 Замовлення"+(function(){try{var n=reorder().length;return n?" ("+n+")":""}catch(e){return ""}})()],["in","Прихід"],["rcb","Чеки з бота"+(botRcs().length?" ("+botRcs().length+")":"")],["tc","Техкарти"],["lu","🍱 Ланч"],["sa","Продажі"],["wo","Брак"],["ct","Підрахунки"],["its","Товари"],["new","Нові коди"+(pend().length?" ("+pend().length+")":"")],["acc","Доступ"]];
- return '<div class="row" style="gap:4px;overflow-x:auto;flex-wrap:nowrap">'+V.map(function(v){return '<button class="b '+(view===v[0]?"":"g")+'" data-skv="'+v[0]+'" style="white-space:nowrap">'+v[1]+'</button>'}).join("")+'<button class="b g" id="skpull" style="margin-left:auto;white-space:nowrap">🔄 Оновити</button></div>'}
+function seg(){var V=[["bal","Залишки"],["go","🚀 Старт"],["ord","🛒 Замовлення"+(function(){try{var n=reorder().length;return n?" ("+n+")":""}catch(e){return ""}})()],["in","Прихід"],["rcb","Чеки з бота"+(botRcs().length?" ("+botRcs().length+")":"")],["tc","Техкарти"],["lu","🍱 Ланч"],["sa","Продажі"],["wo","Брак"],["ct","Підрахунки"],["its","Товари"],["new","Нові коди"+(pend().length?" ("+pend().length+")":"")],["acc","Доступ"]];
+ return '<div class="row segrow">'+V.map(function(v){return '<button class="b '+(view===v[0]?"":"g")+'" data-skv="'+v[0]+'" style="white-space:nowrap">'+v[1]+'</button>'}).join("")+'<button class="b g" id="skpull" style="margin-left:auto;white-space:nowrap">🔄 Оновити</button></div>'}
 function vBal(){
  var by=calc(),q=(g("skq")&&g("skq").value)||"",ls=Object.keys(by).map(function(k){return by[k]}).filter(function(r){return !r.it.ns&&(!q||r.it.n.toLowerCase().indexOf(q.toLowerCase())>-1)});
  if(!items().length)return '<div class="note">Товарів ще немає. Відкрийте «Товари» й додайте перші позиції зі штрихкодами, потім опублікуйте каталог для сканера («Доступ»).</div>';
@@ -1455,7 +1483,10 @@ function todayBlock(){var el=$("ov");if(!el)return;var oc=el.querySelector(".car
  if(bots)tk.push(["rcb","📦 Чеків від бота: "+bots+". Прийняти на склад"]);
  if(nn)tk.push(["new","🆕 Нових кодів зі сканера: "+nn]);
  var orn=0;try{orn=reorder().length}catch(e){}if(orn)tk.push(["ord","🛒 Пора замовити: "+orn+" поз."]);
- var au=actUnk();if(au)tk.push(["nm","📄 Акти списання: позицій без техкарти "+au+". Прив’яжіть у «🔗 Назви»"]);else{var nmn=0;try{nmn=nmCount()}catch(e){}if(nmn)tk.push(["nm","🔗 Назви з каси без прив’язки: "+nmn+". Прив’яжіть один раз, далі списується само"])}
+ var au=0,aul=0,aun=[];acts().slice(0,3).forEach(function(a){actUnkList(a).forEach(function(r){var n=String(r.nm);if(/^🍱/.test(n)||/^Ланч\s*\d+/i.test(n)){aul++;aun.push(n.replace(/^🍱\s*/,""))}else au++})});
+ if(au)tk.push(["nm","📄 Позицій без прив’язки в останніх актах: "+au+". Прив’яжіть у «🔗 Назви»"]);
+ if(aul)tk.push(["lu","🍱 Ланчі без складу в останніх актах: "+aul+" ("+aun.slice(0,3).join(", ")+(aun.length>3?"…":"")+"). Вкажіть склад у «Ланч»"]);
+ if(!au){var nmn=0;try{nmn=nmCount()}catch(e){}if(nmn)tk.push(["nm","🔗 Назви з каси без прив’язки: "+nmn+". Прив’яжіть один раз, далі списується само"])}
  if(low.length)tk.push(["bal","⚠️ Нижче мінімуму ("+low.length+"): "+nm(low)]);
  if(neg.length)tk.push(["bal","❗ Розрахунок у мінусі ("+neg.length+"): "+nm(neg)+". Перевірте приходи"]);
  if(tcs().length){var yd=new Date(Date.now()-864e5).toLocaleDateString("sv");if(!moves().some(function(m){return m.k==="sl"&&m.d===yd}))tk.push(["sa","💳 Продажі за вчора ще не імпортовано"])}
@@ -1722,6 +1753,48 @@ document.addEventListener("click",function(ev){var t=ev.target;if(!t||!t.closest
 vmap.tc=function(){return vTc()+tcImpUI()};
 vmap.ord=vOrd;
 vmap.lu=vLu;
+/* v38: «Старт» — чекліст налаштування, що порахувати першим, рекомендовані мінімуми */
+var GOD=3;
+function goStats(){var cut=new Date(Date.now()-14*864e5).toLocaleDateString("sv"),su={},ds={};
+ moves().forEach(function(m){if((m.k==="sl"||m.k==="wo")&&m.d>=cut&&m.q>0){su[m.i]=(su[m.i]||0)+m.q;if(m.k==="sl")ds[m.d]=1}});
+ var nd=Math.max(1,Object.keys(ds).length);return{su:su,nd:nd}}
+function goRec(avg,u){var x=avg*GOD;if(!(x>0))return 0;if(/^(шт|пач|уп|пляш|бан|пор)/i.test(u||"")||x>=10)return Math.ceil(x);return Math.ceil(x*10)/10}
+function vGo(){
+ var its=items().filter(function(i){return !i.ns}),mv=moves(),st=goStats(),lastCt={};
+ mv.filter(function(m){return m.k==="ct"}).forEach(function(m){var o=lastCt[m.i];if(!o||m.ts>o.ts)lastCt[m.i]=m});
+ var ph=its.filter(function(i){var m=lastCt[i.id];return !m||/стартов/i.test(m.r||"")});
+ var rows=its.map(function(i){var s=st.su[i.id]||0,avg=s/st.nd;return{it:i,avg:avg,rec:goRec(avg,i.u),cost:avg*(i.p||0)}});
+ var used=rows.filter(function(r){return r.avg>0}).sort(function(a,b){return b.cost-a.cost||a.it.n.localeCompare(b.it.n,"uk")});
+ var noMin=used.filter(function(r){return !(r.it.min>0)});
+ var zeroP=its.filter(function(i){return !(i.p>0)}).length,au=0;try{au=actUnk()}catch(e){}
+ var hasTok=false;try{hasTok=!!localStorage.getItem("latte-qr-token")}catch(e){}
+ var step=function(ok,t,d,go){return '<div class="row" style="margin:6px 0"><button class="b g" '+(go?'data-go="'+go+'"':'disabled')+' style="text-align:left;flex:1">'+(ok?"✅ ":"⬜ ")+E(t)+'<br><small class="sub">'+E(d)+'</small></button></div>'};
+ var h='<h2>🚀 Старт: що лишилось налаштувати</h2><div class="c" style="margin:8px 0">';
+ h+=step(!ph.length,"Порахувати реальні залишки","Не пораховано: "+ph.length+" з "+its.length+" (зараз там стартові 100). Рахує персонал на сторінці сканера.","acc");
+ h+=step(!noMin.length&&used.length>0,"Мінімальні залишки","Є продажі, але мінімум не задано: "+noMin.length+" поз. Рекомендовані значення нижче.","go");
+ h+=step(!zeroP,"Ціни за одиницю","Без ціни: "+zeroP+" товарів. З'являться з накладних (розділ «Накладні»).","inv");
+ h+=step(!au,"Ланчі й назви в актах","Без прив'язки в останніх актах: "+au+". Склад ланчу вказують у «Ланч», решту — у «Назви».",au?"lu":"nm");
+ h+=step(hasTok,"Токен каталогу Checkbox","Налаштування → «QR-оплати»: адреса й токен (STATS_TOKEN). Токен зберігається окремо на кожному пристрої.","");
+ h+='</div>';
+ h+='<h2>Що порахувати першим</h2><p class="sub">Спершу найдорожче й те, що витрачається щодня. Решту (суху бакалію, пакування, господарське) — наступним кроком.</p>';
+ var first=ph.map(function(i){var r=rows.filter(function(x){return x.it.id===i.id})[0];return r}).sort(function(a,b){return b.cost-a.cost||(b.avg-a.avg)||a.it.n.localeCompare(b.it.n,"uk")}).slice(0,30);
+ h+=first.length?'<div class="tw"><table><thead><tr><th>#</th><th>Товар</th><th>Од.</th><th>Витрата/день</th></tr></thead><tbody>'+first.map(function(r,n){return '<tr><td>'+(n+1)+'</td><td>'+E(r.it.n)+'</td><td>'+E(r.it.u)+'</td><td>'+(r.avg>0?fm(r.avg,2):"—")+'</td></tr>'}).join("")+'</tbody></table></div>':'<div class="note">✅ Усе пораховано реально.</div>';
+ h+='<div class="row" style="margin-top:8px"><button class="b g" onclick="window.print()">🖨 Роздрукувати список</button></div>';
+ h+='<h2>Рекомендовані мінімальні залишки</h2><div class="row"><label class="sub">Запас на <select id="goday">'+[1,2,3,5,7].map(function(n){return '<option value="'+n+'"'+(n===GOD?" selected":"")+'>'+n+'</option>'}).join("")+'</select> дн. за середньою витратою (продажі й брак за 14 днів, '+st.nd+' днів з продажами).</label></div>';
+ if(!used.length)return h+'<div class="note">Продажів з техкартами ще немає: рекомендації з\'являться після перших актів списання.</div>';
+ h+='<div class="row"><button class="b" id="gonew"'+(noMin.length?"":" disabled")+'>Заповнити там, де мінімум не задано ('+noMin.length+')</button><button class="b g" id="goall">Застосувати всі рекомендовані ('+used.length+')</button></div>';
+ h+='<div class="tw"><table><thead><tr><th>Товар</th><th>Од.</th><th>Витрата/день</th><th>Мінімум зараз</th><th>Рекоменд.</th></tr></thead><tbody>'+used.map(function(r){return '<tr><td>'+E(r.it.n)+'</td><td>'+E(r.it.u)+'</td><td>'+fm(r.avg,2)+'</td><td><input data-mnid="'+E(r.it.id)+'" inputmode="decimal" value="'+(r.it.min>0?fm(r.it.min):"")+'" style="width:5.5em" aria-label="Мінімум"></td><td><button class="b g" data-mnrec="'+E(r.it.id)+'" data-v="'+r.rec+'">'+fm(r.rec)+'</button></td></tr>'}).join("")+'</tbody></table></div>';
+ return h}
+function goSet(id,v){var o=DOCS["sk:i:"+id];if(!o)return;var n=Object.assign({},o,{min:v>0?v:0,ts:Date.now()});DOCS["sk:i:"+id]=n;persist("sk:i:"+id,n)}
+function goApply(onlyNew){var st=goStats(),c=0;items().filter(function(i){return !i.ns}).forEach(function(i){var r=goRec((st.su[i.id]||0)/st.nd,i.u);if(r>0&&(!onlyNew||!(i.min>0))){goSet(i.id,r);c++}});render();toast("Мінімуми оновлено: "+c)}
+vmap.go=vGo;
+document.addEventListener("click",function(e){var t=e.target&&e.target.closest?e.target:null;if(!t||view!=="go")return;
+ if(t.closest("#gonew")){goApply(true);return}if(t.closest("#goall")){goApply(false);return}
+ var b=t.closest("[data-mnrec]");if(b){goSet(b.dataset.mnrec,parseFloat(b.dataset.v));render();return}});
+document.addEventListener("change",function(e){var t=e.target;if(!t||view!=="go")return;
+ if(t.id==="goday"){GOD=+t.value;render();return}
+ if(t.dataset&&t.dataset.mnid){var v=num(t.value);goSet(t.dataset.mnid,isNaN(v)?0:v);toast("Мінімум збережено")}});
+
 var _seg2=seg;seg=function(){var n=invPend().length;return _seg2().replace(/(<button class="b(?: g)?" data-skv="rcb")/,'<button class="b '+(view==="inv"?"":"g")+'" data-skv="inv" style="white-space:nowrap">📨 Накладні'+(n?" ("+n+")":"")+'</button>$1')};
 nav=function(){var n=pend().length+botRcs().length+invPend().length,b=document.querySelector('#nav [data-t="sk"]');if(b)b.textContent="Склад"+(n?" ("+n+")":"")};
 var _ro3=renderOv;renderOv=function(){_ro3();try{var n=invPend().length,c=$("ov")&&$("ov").querySelector(".c"),r=c&&c.querySelector(".row");if(n&&r)r.insertAdjacentHTML("afterend",'<div class="row" style="margin:6px 0"><button class="b g" data-go="inv" style="text-align:left;flex:1">📨 Накладних з пошти на перевірку: '+n+'</button></div>')}catch(e){}};
@@ -1824,6 +1897,36 @@ var ir=$("i")&&$("i").querySelector(".row");if(ir)ir.insertAdjacentHTML("beforee
 setTimeout(function(){sync(0)},8000);
 document.addEventListener("visibilitychange",function(){if(!document.hidden)sync(0)});
 setInterval(function(){if(!document.hidden)sync(0)},600000);
+})();
+</script>
+<script>
+(function(){
+function $(i){return document.getElementById(i)}
+var MS=["Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
+function ovMonth(){var b=document.querySelector("#ov b[style*='center']");var m=b&&/:\s*(\S+)\s+(\d{4})/.exec(b.textContent);if(m){var i=MS.indexOf(m[1].slice(0,3));if(i>-1)return m[2]+"-"+("0"+(i+1)).slice(-2)}return new Date().toLocaleDateString("sv").slice(0,7)}
+function stMonth(){try{if(typeof SEL!=="undefined"&&SEL&&typeof G!=="undefined"){if(G==="m")return SEL;if(G==="d")return SEL.slice(0,7)}}catch(e){}return ""}
+function goList(t,cat,mon){try{F[t].c=cat||"";F[t].m=mon||"";F[t].q="";showTab(t);fillCat(t);var s=$("c"+t);if(s&&cat&&s.value!==cat){var o=document.createElement("option");o.textContent=cat;s.appendChild(o);s.value=cat}var m=$("m"+t);if(m)m.value=F[t].m;var q=$("q"+t);if(q)q.value="";renderList(t);window.scrollTo(0,0)}catch(e){}}
+document.addEventListener("click",function(e){var t=e.target&&e.target.closest?e.target:null;if(!t)return;
+ var bar=t.closest("#ov .bar,#st .bar");
+ if(bar){var sp=bar.querySelectorAll("span"),ii=bar.querySelector("i"),ty=ii&&/--inc/.test(ii.getAttribute("style")||"")?"i":"e";goList(ty,sp[0].textContent.trim(),bar.closest("#ov")?ovMonth():stMonth());return}
+ var c=t.closest("#ov .cards .c,#st .cards .c");
+ if(c){var lb=((c.querySelector("small")||{}).textContent||"").trim().toLowerCase(),inOv=!!c.closest("#ov"),mon=inOv?ovMonth():stMonth();
+  if(lb.indexOf("дохід")===0||lb.indexOf("доходи")===0)goList("i","",mon);else if(lb.indexOf("витрат")===0)goList("e","",mon);else if(lb.indexOf("прибут")===0&&inOv){showTab("st");window.scrollTo(0,0)}return}
+ var sb=t.closest("#ov .row .sub b.i,#ov .row .sub b.e");
+ if(sb){goList(sb.classList.contains("i")?"i":"e","",new Date().toLocaleDateString("sv").slice(0,7));return}
+ var pop=$("morepop");if(pop&&!pop.hidden&&!t.closest("#morepop")&&!t.closest("#more"))pop.hidden=true});
+/* «Ще» у нижній навігації */
+function more(){var n=$("nav");if(!n||!n.children.length||$("more"))return;
+ var b=document.createElement("button");b.id="more";b.type="button";b.dataset.t="more";b.textContent="Ще";
+ var pop=document.createElement("div");pop.id="morepop";pop.hidden=true;
+ [["pay","Зарплата"],["pr","Акції"],["set","Налаштування"]].forEach(function(x){var s=n.querySelector('[data-t="'+x[0]+'"]'),p=document.createElement("button");p.type="button";p.dataset.t=x[0];p.textContent=x[1];
+  var ic=s&&getComputedStyle(s).getPropertyValue("--ic");if(ic)p.style.setProperty("--ic",ic);
+  p.onclick=function(){pop.hidden=true;showTab(x[0]);window.scrollTo(0,0)};pop.appendChild(p)});
+ b.onclick=function(ev){ev.stopPropagation();pop.hidden=!pop.hidden};
+ n.appendChild(b);document.body.appendChild(pop);mark()}
+function mark(){var b=$("more"),pop=$("morepop");if(!b)return;var tb=typeof tab!=="undefined"?tab:"";var inG=["pay","pr","set"].indexOf(tb)>-1;b.setAttribute("aria-selected",inG);Array.prototype.forEach.call(pop.children,function(p){p.setAttribute("aria-selected",p.dataset.t===tb)})}
+if(typeof showTab==="function"){var _st=showTab;window.showTab=showTab=function(t){_st(t);mark()}}
+more();
 })();
 </script>
 </body>
