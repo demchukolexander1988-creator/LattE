@@ -189,6 +189,11 @@ nav#nav [data-t=more]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
  #morepop button:active,#morepop button[aria-selected=true]{background:#d9ad6326;color:#fff}
  #morepop button::before{content:"";flex:none;width:22px;height:22px;background:var(--gold2);-webkit-mask:var(--ic) center/contain no-repeat;mask:var(--ic) center/contain no-repeat}
 }
+.insg{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:10px 0}
+.insg .c b{display:block;font-size:1.45rem;margin:6px 0 4px}.insg .c .sub{display:block;font-size:.78rem;line-height:1.35}
+.ib{display:flex;align-items:center;gap:8px;font-size:.92rem;margin:8px 0}.ib i{display:block;height:12px;border-radius:8px;min-width:2px}.ib span:first-child{flex:0 0 34%}
+@media (max-width:760px){.insg{grid-template-columns:1fr 1fr}.insg .c b{font-size:1.15rem}.ib span:first-child{flex-basis:40%}}
+#ins td:nth-child(2),#ins th:nth-child(2){text-align:left}
 </style>
 </head>
 <body>
@@ -1927,6 +1932,70 @@ function more(){var n=$("nav");if(!n||!n.children.length||$("more"))return;
 function mark(){var b=$("more"),pop=$("morepop");if(!b)return;var tb=typeof tab!=="undefined"?tab:"";var inG=["pay","pr","set"].indexOf(tb)>-1;b.setAttribute("aria-selected",inG);Array.prototype.forEach.call(pop.children,function(p){p.setAttribute("aria-selected",p.dataset.t===tb)})}
 if(typeof showTab==="function"){var _st=showTab;window.showTab=showTab=function(t){_st(t);mark()}}
 more();
+})();
+</script>
+<script>
+/* v40: аналітика в Статистиці: прогнози, дні тижня, топ страв */
+(function(){
+var WD=["Неділя","Понеділок","Вівторок","Середа","Четвер","П’ятниця","Субота"],INS={by:"s",per:14};
+function $(i){return document.getElementById(i)}
+function F0(n,d){return Number(n||0).toLocaleString("uk-UA",{minimumFractionDigits:d||0,maximumFractionDigits:d||0})}
+function cur(){try{return CFG.cur||"₴"}catch(e){return "₴"}}
+function wdOf(d){return new Date(d+"T12:00:00").getDay()}
+function addD(d,n){var x=new Date(d+"T12:00:00");x.setDate(x.getDate()+n);return x.toLocaleDateString("sv")}
+function esc2(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function daily(){var r={},e={};all().forEach(function(x){if(x.t==="i"){if(/чайов/i.test(x.c||""))return;r[x.d]=(r[x.d]||0)+x.a}else e[x.d]=(e[x.d]||0)+x.a});return{r:r,e:e}}
+function dishes(){var by={},days={};Object.keys(DOCS).forEach(function(k){if(k.indexOf("sk:x:")!==0)return;var a=DOCS[k];if(!a||!a.d)return;days[a.d]=1;(a.rows||[]).concat(a.un||[]).forEach(function(r){if(!r||!r.n||/пакуван/i.test(r.n))return;var o=by[r.n]||(by[r.n]={n:r.n,q:{},s:{}});o.q[a.d]=(o.q[a.d]||0)+(+r.q||0);o.s[a.d]=(o.s[a.d]||0)+(+r.s||0)/100})});return{by:by,days:Object.keys(days).sort()}}
+function sumIn(o,from,to){var t=0;Object.keys(o).forEach(function(d){if(d>=from&&d<=to)t+=o[d]});return t}
+function build(){
+ var D=daily(),days=Object.keys(D.r).filter(function(d){return D.r[d]>0}).sort(),t=new Date().toLocaleDateString("sv");
+ if(days.length<3)return '<h2>Аналітика</h2><div class="note">Замало даних про виручку: потрібно хоча б 3 дні.</div>';
+ var cu=cur(),h='<h2>📈 Аналітика та прогнози</h2>';
+ /* дні тижня */
+ var w=[0,1,2,3,4,5,6].map(function(i){return{i:i,n:0,s:0}});days.forEach(function(d){var o=w[wdOf(d)];o.n++;o.s+=D.r[d]});
+ var avgAll=days.reduce(function(s,d){return s+D.r[d]},0)/days.length;
+ w.forEach(function(o){o.a=o.n?o.s/o.n:0});
+ var good=w.filter(function(o){return o.n>0}),best=good.slice().sort(function(a,b){return b.a-a.a})[0],worst=good.slice().sort(function(a,b){return a.a-b.a})[0];
+ /* прогноз місяця */
+ var ym=t.slice(0,7),dim=new Date(+ym.slice(0,4),+ym.slice(5),0).getDate(),soFar=0,exp=0;
+ Object.keys(D.r).forEach(function(d){if(d.slice(0,7)===ym)soFar+=D.r[d]});Object.keys(D.e).forEach(function(d){if(d.slice(0,7)===ym)exp+=D.e[d]});
+ var rem=0,remN=0;for(var n=+t.slice(8)+1;n<=dim;n++){var dd=ym+"-"+("0"+n).slice(-2),o=w[wdOf(dd)];rem+=o.n>=2?o.a:avgAll;remN++}
+ var fRev=soFar+rem,dayN=+t.slice(8),fExp=dayN>0?exp/dayN*dim:exp;
+ var tm=addD(t,1),twd=w[wdOf(tm)],tmV=twd.n>=2?twd.a:avgAll;
+ /* тиждень до тижня */
+ var w1=sumIn(D.r,addD(t,-6),t),w0=sumIn(D.r,addD(t,-13),addD(t,-7)),dl=w0>0?(w1-w0)/w0*100:null;
+ h+='<div class="insg">'
+  +'<div class="c"><small>Завтра, '+WD[wdOf(tm)].toLowerCase()+'</small><b>≈ '+F0(tmV)+' '+cu+'</b><span class="sub">середня виручка цього дня тижня</span></div>'
+  +'<div class="c"><small>Виручка до кінця місяця</small><b>≈ '+F0(fRev)+' '+cu+'</b><span class="sub">вже '+F0(soFar)+' + ще '+remN+' дн. за днями тижня</span></div>'
+  +'<div class="c"><small>Орієнтовний прибуток місяця</small><b class="'+(fRev-fExp<0?"e":"i")+'">≈ '+F0(fRev-fExp)+' '+cu+'</b><span class="sub">витрати за темпом '+F0(fExp)+' (разові великі спотворюють)</span></div>'
+  +'<div class="c"><small>Останні 7 днів</small><b>'+F0(w1)+' '+cu+'</b><span class="sub">'+(dl==null?"немає попереднього тижня":(dl>=0?"▲ +":"▼ ")+F0(dl,1)+"% до попередніх 7 днів")+'</span></div></div>';
+ /* дні тижня */
+ var mx=Math.max.apply(null,w.map(function(o){return o.a}))||1,ord=[1,2,3,4,5,6,0];
+ h+='<h2>Який день тижня торгується краще</h2><p class="sub">Середня виручка дня (без чайових) за '+days.length+' днів із даними: '+dm0(days[0])+' – '+dm0(days[days.length-1])+'.'+(days.length<28?' Чим довше ведеться облік, тим точніший прогноз.':'')+'</p>';
+ h+=ord.map(function(i){var o=w[i],isB=best&&o.i===best.i;return '<div class="ib"><span>'+(isB?"🏆 ":"")+WD[i]+'</span><i style="width:'+Math.max(2,o.a/mx*45)+'%;background:var(--'+(isB?"inc":"gold2")+')"></i><span>'+(o.n?F0(o.a)+" ("+o.n+" дн.)":"—")+'</span></div>'}).join("");
+ if(best&&worst&&best.i!==worst.i)h+='<p class="sub">Найкраще: <b>'+WD[best.i]+'</b> (≈ '+F0(best.a)+' '+cu+'), найслабше: <b>'+WD[worst.i]+'</b> (≈ '+F0(worst.a)+' '+cu+'). Різниця '+F0((best.a/Math.max(1,worst.a)-1)*100)+'%. Слабкий день — для акцій, найсильніший — для повного складу й персоналу.</p>';
+ /* рекорди */
+ var top=days.slice().sort(function(a,b){return D.r[b]-D.r[a]}).slice(0,3);
+ h+='<h2>Рекордні дні</h2><div class="tw"><table><thead><tr><th>Дата</th><th>День</th><th>Виручка</th></tr></thead><tbody>'+top.map(function(d){return '<tr><td>'+dm0(d)+'</td><td>'+WD[wdOf(d)]+'</td><td class="i">'+F0(D.r[d])+'</td></tr>'}).join("")+'</tbody></table></div>';
+ /* страви */
+ var X=dishes();
+ if(X.days.length){
+  var last=X.days[X.days.length-1],from=INS.per>0?addD(last,-(INS.per-1)):"0000",pf=INS.per>0?addD(from,-INS.per):"",pt=INS.per>0?addD(from,-1):"";
+  var key=INS.by,rows=Object.keys(X.by).map(function(k){var o=X.by[k],cur_=sumIn(o[key],from,last),prev=INS.per>0?sumIn(o[key],pf,pt):0,q=sumIn(o.q,from,last),s=sumIn(o.s,from,last);return{n:o.n,q:q,s:s,v:cur_,prev:prev}}).filter(function(r){return r.v>0}).sort(function(a,b){return b.v-a.v}),tot=rows.reduce(function(s,r){return s+r.v},0),nd=X.days.filter(function(d){return d>=from&&d<=last}).length||1;
+  var top10=rows.slice(0,15);
+  h+='<h2>🍽 Топ страв і напоїв</h2><div class="row"><label class="sub">Рейтинг за <select id="insby"><option value="s"'+(key==="s"?" selected":"")+'>виручкою</option><option value="q"'+(key==="q"?" selected":"")+'>кількістю</option></select></label><label class="sub">Період <select id="insper">'+[[7,"7 днів"],[14,"14 днів"],[30,"30 днів"],[0,"весь облік"]].map(function(p){return '<option value="'+p[0]+'"'+(INS.per===p[0]?" selected":"")+'>'+p[1]+'</option>'}).join("")+'</select></label></div>';
+  h+='<p class="sub">За актами списання з Checkbox: '+nd+' днів із продажами, до '+dm0(last)+'.</p>';
+  h+=top10.length?'<div class="tw"><table><thead><tr><th>#</th><th>Позиція</th><th>К-сть</th><th>Виручка</th><th>Частка</th><th>Зміна</th></tr></thead><tbody>'+top10.map(function(r,i){var ch=INS.per>0&&r.prev>0?(r.v-r.prev)/r.prev*100:null;return '<tr><td>'+(i+1)+'</td><td>'+esc2(r.n)+'</td><td>'+F0(r.q)+'</td><td>'+F0(r.s)+'</td><td>'+F0(r.v/tot*100,1)+'%</td><td class="'+(ch==null?"":ch>=0?"i":"e")+'">'+(ch==null?"—":(ch>=0?"▲ ":"▼ ")+F0(Math.abs(ch))+"%")+'</td></tr>'}).join("")+'</tbody></table></div>':'<div class="note">За цей період продажів немає.</div>';
+  var low=rows.slice(-5).reverse();
+  if(rows.length>15)h+='<p class="sub">Найслабші в періоді: '+low.map(function(r){return esc2(r.n)+" ("+F0(r.q)+" шт)"}).join(", ")+'. Кандидати на прибирання з меню або акцію.</p>';
+  h+='<p class="sub">«Зміна» порівнює з попередніми такими самими днями. Заготовки на завтра: середня кількість за день — '+top10.slice(0,5).map(function(r){return esc2(r.n)+" ≈ "+F0(r.q/nd,1)}).join(", ")+'.</p>';
+ }
+ return h}
+function dm0(d){var a=d.split("-");return a[2]+"."+a[1]+"."+a[0].slice(2)}
+function inject(){var el=$("st");if(!el)return;var o=$("ins");if(o)o.remove();var d=document.createElement("div");d.id="ins";try{d.innerHTML=build()}catch(e){d.innerHTML='<div class="note">Аналітика недоступна: '+esc2(e&&e.message)+'</div>'}el.appendChild(d)}
+if(typeof renderStats==="function"){var _rs=renderStats;window.renderStats=renderStats=function(){_rs();inject()}}
+document.addEventListener("change",function(e){var t=e.target;if(!t||!t.id)return;if(t.id==="insby"){INS.by=t.value;inject()}else if(t.id==="insper"){INS.per=+t.value;inject()}});
+try{inject()}catch(e){}
 })();
 </script>
 </body>
