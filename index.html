@@ -202,6 +202,19 @@ details.insd:not([open])>summary::after{transform:rotate(-90deg)}
 #ins details td:nth-child(2),#ins details th:nth-child(2){text-align:right}
 #ins details td:first-child,#ins details th:first-child{text-align:left}
 #verside{opacity:.6;font-size:.72rem;margin:6px 0 0}@media (max-width:760px){#verside{display:none}}
+/* v44: по днях */
+.ddt{width:100%;border-collapse:collapse;font-size:.86rem}.ddt th,.ddt td{padding:4px 6px;border-bottom:1px solid var(--line,#00000014)}
+.ddt .r{text-align:right;white-space:nowrap}.ddt tfoot th{border-top:2px solid var(--line,#0003)}
+.ddt tr.ddw td:first-child{color:var(--gold,#b8893b)}.ddt tr.dde{opacity:.45}.ddt tr.ddt0 td:first-child{font-weight:800}
+.ddt .ddb{width:30%;min-width:70px;padding-left:10px;vertical-align:middle}
+.ddt .ddi,.ddt .dde2{display:block;height:5px;border-radius:3px;margin:1px 0}.ddt .ddi{background:#2f8f5b}.ddt .dde2{background:#b5483a}
+@media (max-width:760px){.ddt{font-size:.8rem}.ddt th,.ddt td{padding:3px 4px}.ddt .ddb{min-width:44px}}
+.ddt{table-layout:auto}.ddt th{font-size:.7rem!important;letter-spacing:0!important;text-transform:none!important;padding:5px 6px!important;white-space:nowrap}
+.ddt th::after,.ddt th::before{display:none!important;content:none!important}
+.ddt td{font-size:.86rem!important;white-space:nowrap}.ddt td b{font-size:inherit!important;margin:0!important;display:inline!important}
+.ddt td:first-child{white-space:nowrap}
+@media (max-width:760px){.ddt .ddb,.ddt th.ddb{display:none}.ddt td,.ddt th{padding:4px 5px!important}.ddt td{font-size:.8rem!important}}
+.ddt td small{display:inline!important;margin-left:3px}.ddt td{line-height:1.2!important}
 </style>
 </head>
 <body>
@@ -1248,7 +1261,7 @@ function tabNow(){return typeof tab!=="undefined"?tab:""}
 /* ---- v25: акти списання з Checkbox (продажі за зміну → списання інгредієнтів за техкартами) ---- */
 function acts(){return Object.keys(DOCS).filter(function(k){return k.indexOf("sk:x:")===0&&DOCS[k]&&DOCS[k].d}).map(function(k){return DOCS[k]}).sort(function(a,b){return a.d<b.d?1:-1})}
 function actBqRows(a){var o=[];(a.bq||[]).forEach(function(b){(b.rows||[]).forEach(function(r){o.push(r)})});return o}
-function actRows(a){var m={};(a.rows||[]).concat(a.un||[],actBqRows(a)).forEach(function(r){var k=nrm(r.n);if(m[k])m[k].q+=r.q;else m[k]={nm:r.n,q:r.q}});return matchSales(Object.keys(m).map(function(k){return m[k]}))}
+function actRows(a){var m={};(a.rows||[]).concat(a.un||[],actBqRows(a)).forEach(function(r){var n0=r.n,q0=r.q,lm=String(n0).match(/^\s*ланч\s*(\d+)\s*$/i);if(lm&&+lm[1]>=150){var N=+lm[1];n0="Ланч 190";if(N>=380)q0=r.q*Math.round(N/190)}var k=nrm(n0);if(m[k])m[k].q+=q0;else m[k]={nm:n0,q:q0}});return matchSales(Object.keys(m).map(function(k){return m[k]}))}
 function actUnkList(a){var o=actRows(a).filter(function(r){return !r.tc&&!r.it&&!r.ign&&!luComp(a.d,r.nm)});
  actRows(a).forEach(function(r){var t=luType(r.nm);if(!t)return;var own=luRec(a.d);if(own&&own.ty&&own.ty[t]&&own.ty[t].length)return;var A=luActTy(a.d,t);if(A)A.unk.forEach(function(n){o.push({nm:"🍱 "+t+": "+n,q:r.q})})});return o}
 function actUnk(){var n=0;acts().slice(0,7).forEach(function(a){n+=actUnkList(a).length});return n}
@@ -1516,7 +1529,7 @@ function todayBlock(){var el=$("ov");if(!el)return;var oc=el.querySelector(".car
  if(ck.length){h+='<small class="sub">Найбільші витрати</small>'+ck.map(function(c){return '<div class="bar"><span>'+esc(c)+'</span><i style="width:'+Math.max(2,cs[c]/cs[ck[0]]*40)+'%;background:var(--exp)"></i><span>'+f(cs[c])+' ('+f(cs[c]/tot*100)+'%)</span></div>'}).join("")}
  var wc=0;try{Object.keys(by).forEach(function(i){by[i].wo.forEach(function(m){if(new Date(m.ts).toLocaleDateString("sv").slice(0,7)===k)wc+=m.q*(by[i].it.p||0)})})}catch(e){}
  if(wc>0)h+='<p class="sub">Брак за місяць за цінами складу: <b>'+money(wc)+'</b> (уже враховано у витратах лише якщо ви вносили його вручну).</p>';
- h+='</div>';
+ h+=(window.__days?window.__days(k):"");h+='</div>';
  el.insertAdjacentHTML("afterbegin",h)}
 var _ro=renderOv;renderOv=function(){_ro();try{todayBlock()}catch(e){}};
 document.addEventListener("click",function(e){var t=e.target&&e.target.closest?e.target:null;if(!t)return;var b=t.closest("[data-go]");
@@ -1973,7 +1986,7 @@ function mark(){var b=$("more"),pop=$("morepop");if(!b)return;var tb=typeof tab!
 if(typeof showTab==="function"){var _st=showTab;window.showTab=showTab=function(t){_st(t);mark()}}
 more();
 })();
-(function(){var V="v43",D="19.11.2026";
+(function(){var V="v45",D="19.11.2026";
 function ver(){var s=document.getElementById("set");if(s&&!s.querySelector("#ver")){var p=document.createElement("p");p.id="ver";p.className="sub";p.style.cssText="margin:0 0 12px;font-weight:600";p.textContent="Версія застосунку: "+V+" · оновлено "+D;s.insertBefore(p,s.firstChild)}
  var m=document.getElementById("mode");if(m&&!document.getElementById("verside")){var q=document.createElement("p");q.id="verside";q.className="sub";q.textContent="Версія "+V;m.parentNode.appendChild(q)}}
 if(typeof renderSet==="function"){var _r=renderSet;window.renderSet=renderSet=function(){_r.apply(this,arguments);ver()}}
@@ -2179,6 +2192,33 @@ document.addEventListener("toggle",function(e){var d=e.target;if(d&&d.classList&
 document.addEventListener("click",function(e){if(e.target&&e.target.closest&&e.target.closest("#bizsend"))sendBiz(1)});
 document.addEventListener("change",function(e){var t=e.target;if(t&&t.id==="bizauto"){try{localStorage.setItem("latte-biz-auto",t.checked?"1":"0")}catch(x){}}});
 if(window.__insRender)window.__insRender();
+})();
+</script>
+<script>
+/* v44: дохід / витрати / прибуток по днях місяця на «Огляд» */
+(function(){
+var WD=["нд","пн","вт","ср","чт","пт","сб"];
+window.__days=function(k){
+ try{
+  var y=+k.slice(0,4),m=+k.slice(5),dim=new Date(y,m,0).getDate(),td=new Date().toLocaleDateString("sv"),
+      last=td.slice(0,7)===k?+td.slice(8):(td.slice(0,7)<k?0:dim),D=[];
+  for(var i=1;i<=dim;i++)D.push({i:0,e:0});
+  all().forEach(function(x){if(x.d&&x.d.slice(0,7)===k){var n=+x.d.slice(8)-1;if(D[n]){if(x.t==="i")D[n].i+=x.a;else if(x.t==="e")D[n].e+=x.a}}});
+  var mx=0,bi=-1,wi=-1,bp=-1e18,wp=1e18,ti=0,te=0,act=0;
+  D.forEach(function(d,n){d.p=d.i-d.e;if(n+1>last)return;ti+=d.i;te+=d.e;if(d.i||d.e){act++;mx=Math.max(mx,d.i,d.e);if(d.p>bp){bp=d.p;bi=n}if(d.p<wp){wp=d.p;wi=n}}});
+  if(!act)return "";
+  var h='<details class="insd dd" open><summary style="font-size:1.05rem;margin:12px 0 6px">📅 По днях місяця</summary>';
+  h+='<p class="sub" style="margin:0 0 6px">Зелене — дохід, червоне — витрати за день; праворуч прибуток. Робочих днів із рухом: <b>'+act+'</b>.'+(bi>=0?' Найкращий день: <b>'+(bi+1)+'-го</b> ('+f(bp)+'), найгірший: <b>'+(wi+1)+'-го</b> ('+f(wp)+').':"")+'</p>';
+  h+='<div class="tw"><table class="ddt"><thead><tr><th>День</th><th class="r">Дохід</th><th class="r">Витрати</th><th class="r">Прибуток</th><th class="ddb"></th></tr></thead><tbody>';
+  for(var n=0;n<dim;n++){var d=D[n];if(n+1>last)break;
+   var dt=new Date(y,m-1,n+1),w=dt.getDay(),iso=k+"-"+(n<9?"0":"")+(n+1),empty=!d.i&&!d.e;
+   h+='<tr class="'+(iso===td?"ddt0 ":"")+(w===0||w===6?"ddw ":"")+(empty?"dde":"")+'"><td>'+(n+1)+' <small class="sub">'+WD[w]+'</small></td><td class="r i">'+(d.i?f(d.i):"—")+'</td><td class="r e">'+(d.e?f(d.e):"—")+'</td><td class="r '+(d.p<0?"e":"i")+'"><b>'+(empty?"—":f(d.p))+'</b></td><td class="ddb">'+(empty?"":'<span class="ddi" style="width:'+Math.max(2,d.i/mx*100)+'%"></span><span class="dde2" style="width:'+Math.max(2,d.e/mx*100)+'%"></span>')+'</td></tr>'}
+  h+='</tbody><tfoot><tr><th>Разом</th><th class="r i">'+f(ti)+'</th><th class="r e">'+f(te)+'</th><th class="r '+(ti-te<0?"e":"i")+'">'+f(ti-te)+'</th><th></th></tr></tfoot></table></div>';
+  h+='<p class="sub">Разові великі витрати (оренда, закупівля, зарплата) падають на той день, коли їх внесено, тому прибуток окремого дня не завжди показовий. Дивіться сумарно за тиждень.</p></details>';
+  return h
+ }catch(e){return ""}
+};
+[300,1200,3000].forEach(function(ms){setTimeout(function(){try{if(!document.querySelector('details.dd'))renderOv()}catch(e){}},ms)});
 })();
 </script>
 </body>
