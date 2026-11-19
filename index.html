@@ -1516,7 +1516,7 @@ function todayBlock(){var el=$("ov");if(!el)return;var oc=el.querySelector(".car
  if(low.length)tk.push(["bal","⚠️ Нижче мінімуму ("+low.length+"): "+nm(low)]);
  if(neg.length)tk.push(["bal","❗ Розрахунок у мінусі ("+neg.length+"): "+nm(neg)+". Перевірте приходи"]);
  if(tcs().length){var yd=new Date(Date.now()-864e5).toLocaleDateString("sv");if(!moves().some(function(m){return m.k==="sl"&&m.d===yd}))tk.push(["sa","💳 Продажі за вчора ще не імпортовано"])}
- var h='<div class="c" style="margin:8px 0"><div class="row"><b style="flex:1">Сьогодні, '+dm(t)+'</b><span class="sub">дохід <b class="i">'+money(ti)+'</b> · витрати <b class="e">'+money(te)+'</b></span></div>';
+ var h='<div class="c" style="margin:8px 0"><div class="row"><b style="flex:1">Сьогодні, '+dm(t)+'</b><span class="sub">дохід <b class="i">'+money(ti)+'</b> · витрати <b class="e">'+money(te)+'</b> · прибуток <b class="'+(ti-te<0?"e":"i")+'">'+money(ti-te)+'</b></span></div>';
  h+=tk.length?tk.map(function(x){return '<div class="row" style="margin:6px 0"><button class="b g" data-go="'+x[0]+'" style="text-align:left;flex:1">'+esc(x[1])+'</button></div>'}).join(""):'<div class="sub" style="margin:6px 0">✅ Склад у порядку, нових завдань немає.</div>';
  h+='<div class="row"><button class="b g" data-go="wo">Брак</button><button class="b g" data-go="sa">Продажі</button><button class="b g" data-go="in">Прихід</button><button class="b g" data-go="ct">Підрахунок</button></div></div>';
  var k=PMK,cur=k===today().slice(0,7),s=monthSum(k),p=monthSum(ym(k,-1)),yy=monthSum(ym(k,-12)),pr=s.i-s.e;
@@ -1529,7 +1529,7 @@ function todayBlock(){var el=$("ov");if(!el)return;var oc=el.querySelector(".car
  if(ck.length){h+='<small class="sub">Найбільші витрати</small>'+ck.map(function(c){return '<div class="bar"><span>'+esc(c)+'</span><i style="width:'+Math.max(2,cs[c]/cs[ck[0]]*40)+'%;background:var(--exp)"></i><span>'+f(cs[c])+' ('+f(cs[c]/tot*100)+'%)</span></div>'}).join("")}
  var wc=0;try{Object.keys(by).forEach(function(i){by[i].wo.forEach(function(m){if(new Date(m.ts).toLocaleDateString("sv").slice(0,7)===k)wc+=m.q*(by[i].it.p||0)})})}catch(e){}
  if(wc>0)h+='<p class="sub">Брак за місяць за цінами складу: <b>'+money(wc)+'</b> (уже враховано у витратах лише якщо ви вносили його вручну).</p>';
- h+='</div>';h+=(window.__days?window.__days(k,'<div class=\"row\"><button class=\"b g\" data-mpm=\"-1\" aria-label=\"Попередній місяць\">‹</button><b style=\"flex:1;text-align:center\">По днях: '+MN[+k.slice(5)-1]+' '+k.slice(0,4)+'</b><button class=\"b g\" data-mpm=\"1\" aria-label=\"Наступний місяць\"'+(cur?' disabled':'')+'>›</button></div>'):"");
+ h+='</div>';
  el.insertAdjacentHTML("afterbegin",h)}
 var _ro=renderOv;renderOv=function(){_ro();try{todayBlock()}catch(e){}};
 document.addEventListener("click",function(e){var t=e.target&&e.target.closest?e.target:null;if(!t)return;var b=t.closest("[data-go]");
@@ -1986,7 +1986,7 @@ function mark(){var b=$("more"),pop=$("morepop");if(!b)return;var tb=typeof tab!
 if(typeof showTab==="function"){var _st=showTab;window.showTab=showTab=function(t){_st(t);mark()}}
 more();
 })();
-(function(){var V="v46",D="19.11.2026";
+(function(){var V="v48",D="19.11.2026";
 function ver(){var s=document.getElementById("set");if(s&&!s.querySelector("#ver")){var p=document.createElement("p");p.id="ver";p.className="sub";p.style.cssText="margin:0 0 12px;font-weight:600";p.textContent="Версія застосунку: "+V+" · оновлено "+D;s.insertBefore(p,s.firstChild)}
  var m=document.getElementById("mode");if(m&&!document.getElementById("verside")){var q=document.createElement("p");q.id="verside";q.className="sub";q.textContent="Версія "+V;m.parentNode.appendChild(q)}}
 if(typeof renderSet==="function"){var _r=renderSet;window.renderSet=renderSet=function(){_r.apply(this,arguments);ver()}}
@@ -1995,6 +1995,11 @@ ver()})();
 <script>
 /* v40: аналітика в Статистиці: прогнози, дні тижня, топ страв */
 (function(){
+function isDrink(n){var s=String(n||"").toLowerCase(),E="(?![а-яіїєґ'])";
+ if(/^🍱|ланч/.test(s))return false;
+ if(new RegExp("\\d\\s*(мл|ml)"+E+"|\\d[.,]?\\d*\\s*л"+E).test(s)&&!/(суп|борщ|солянк|бульйон|соус)/.test(s))return true;
+ return new RegExp("(^|[^а-яіїєґ'])(кав[аиу]|еспрес|американ|капуч|лате?"+E+"|флет|мокач|айріш|раф"+E+"|какао|чай|чаї|компот|узвар|сік"+E+"|соки"+E+"|вода|води|джет|енергетик|кола"+E+"|лимонад|морс|фреш|смузі|коктейл|мохіто|пиво|вино|горілк|коньяк|віскі|лікер|шампанськ|сидр|глінтвейн|пунш|мілкшейк|шейк|тонік|бонбуасон|айс\\s?ті|шоколад"+E+"|мінералк|газован|nescafe|nescafé|фанта|спрайт|пепсі|pepsi|sprite|fanta|redbull|red bull|блек"+E+"|молоко"+E+")").test(s)}
+
 var WD=["Неділя","Понеділок","Вівторок","Середа","Четвер","П’ятниця","Субота"],INS={by:"s",per:14};
 function $(i){return document.getElementById(i)}
 function F0(n,d){return Number(n||0).toLocaleString("uk-UA",{minimumFractionDigits:d||0,maximumFractionDigits:d||0})}
@@ -2040,12 +2045,16 @@ function build(){
  if(X.days.length){
   var last=X.days[X.days.length-1],from=INS.per>0?addD(last,-(INS.per-1)):"0000",pf=INS.per>0?addD(from,-INS.per):"",pt=INS.per>0?addD(from,-1):"";
   var key=INS.by,rows=Object.keys(X.by).map(function(k){var o=X.by[k],cur_=sumIn(o[key],from,last),prev=INS.per>0?sumIn(o[key],pf,pt):0,q=sumIn(o.q,from,last),s=sumIn(o.s,from,last);return{n:o.n,q:q,s:s,v:cur_,prev:prev}}).filter(function(r){return r.v>0}).sort(function(a,b){return b.v-a.v}),tot=rows.reduce(function(s,r){return s+r.v},0),nd=X.days.filter(function(d){return d>=from&&d<=last}).length||1;
-  var top10=rows.slice(0,15);
-  h+='<h2>🍽 Топ страв і напоїв</h2><div class="row"><label class="sub">Рейтинг за <select id="insby"><option value="s"'+(key==="s"?" selected":"")+'>виручкою</option><option value="q"'+(key==="q"?" selected":"")+'>кількістю</option></select></label><label class="sub">Період <select id="insper">'+[[7,"7 днів"],[14,"14 днів"],[30,"30 днів"],[0,"весь облік"]].map(function(p){return '<option value="'+p[0]+'"'+(INS.per===p[0]?" selected":"")+'>'+p[1]+'</option>'}).join("")+'</select></label></div>';
-  h+='<p class="sub">За актами списання з Checkbox: '+nd+' днів із продажами, до '+dm0(last)+'.</p>';
-  h+=top10.length?'<div class="tw"><table><thead><tr><th>#</th><th>Позиція</th><th>К-сть</th><th>Виручка</th><th>Частка</th><th>Зміна</th></tr></thead><tbody>'+top10.map(function(r,i){var ch=INS.per>0&&r.prev>0?(r.v-r.prev)/r.prev*100:null;return '<tr><td>'+(i+1)+'</td><td>'+esc2(r.n)+'</td><td>'+F0(r.q)+'</td><td>'+F0(r.s)+'</td><td>'+F0(r.v/tot*100,1)+'%</td><td class="'+(ch==null?"":ch>=0?"i":"e")+'">'+(ch==null?"—":(ch>=0?"▲ ":"▼ ")+F0(Math.abs(ch))+"%")+'</td></tr>'}).join("")+'</tbody></table></div>':'<div class="note">За цей період продажів немає.</div>';
-  var low=rows.slice(-5).reverse();
-  if(rows.length>15)h+='<p class="sub">Найслабші в періоді: '+low.map(function(r){return esc2(r.n)+" ("+F0(r.q)+" шт)"}).join(", ")+'. Кандидати на прибирання з меню або акцію.</p>';
+  var hdr='<div class="row"><label class="sub">Рейтинг за <select id="insby"><option value="s"'+(key==="s"?" selected":"")+'>виручкою</option><option value="q"'+(key==="q"?" selected":"")+'>кількістю</option></select></label><label class="sub">Період <select id="insper">'+[[7,"7 днів"],[14,"14 днів"],[30,"30 днів"],[0,"весь облік"]].map(function(p){return '<option value="'+p[0]+'"'+(INS.per===p[0]?" selected":"")+'>'+p[1]+'</option>'}).join("")+'</select></label></div>';
+  var rD=rows.filter(function(r){return !isDrink(r.n)}),rK=rows.filter(function(r){return isDrink(r.n)});
+  function list(L,ttl,note){var top10=L.slice(0,15),tt=L.reduce(function(s,r){return s+r.v},0);var o='<h2>'+ttl+'</h2>';
+   o+=top10.length?'<div class="tw"><table><thead><tr><th>#</th><th>Позиція</th><th>К-сть</th><th>Виручка</th><th>Частка</th><th>Зміна</th></tr></thead><tbody>'+top10.map(function(r,i){var ch=INS.per>0&&r.prev>0?(r.v-r.prev)/r.prev*100:null;return '<tr><td>'+(i+1)+'</td><td>'+esc2(r.n)+'</td><td>'+F0(r.q)+'</td><td>'+F0(r.s)+'</td><td>'+F0(r.v/tt*100,1)+'%</td><td class="'+(ch==null?"":ch>=0?"i":"e")+'">'+(ch==null?"—":(ch>=0?"▲ ":"▼ ")+F0(Math.abs(ch))+"%")+'</td></tr>'}).join("")+'</tbody></table></div>':'<div class="note">За цей період продажів немає.</div>';
+   if(L.length>15){var lw=L.slice(-5).reverse();o+='<p class="sub">Найслабші в періоді: '+lw.map(function(r){return esc2(r.n)+" ("+F0(r.q)+" шт)"}).join(", ")+'. '+note+'</p>'}
+   return o}
+  h+='<h2 style="margin-bottom:4px">Топ страв і напоїв</h2>'+hdr;
+  h+='<p class="sub">За актами списання з Checkbox: '+nd+' днів із продажами, до '+dm0(last)+'. Страви й напої показані окремо.</p>';
+  h+=list(rD,"🍽 Топ страв","Кандидати на прибирання з меню або акцію.")+list(rK,"🥤 Топ напоїв","Кандидати на прибирання з меню або акцію.");
+  var top10=rD.slice(0,15);
   h+='<p class="sub">«Зміна» порівнює з попередніми такими самими днями. Заготовки на завтра: середня кількість за день — '+top10.slice(0,5).map(function(r){return esc2(r.n)+" ≈ "+F0(r.q/nd,1)}).join(", ")+'.</p>';
  }
  h+=(window.__insMore?window.__insMore():"");return h}
@@ -2053,7 +2062,7 @@ function dm0(d){var a=d.split("-");return a[2]+"."+a[1]+"."+a[0].slice(2)}
 function inject(){var el=$("st");if(!el)return;var o=$("ins");if(o)o.remove();var d=document.createElement("div");d.id="ins";try{d.innerHTML=build()}catch(e){d.innerHTML='<div class="note">Аналітика недоступна: '+esc2(e&&e.message)+'</div>'}el.appendChild(d)}
 if(typeof renderStats==="function"){var _rs=renderStats;window.renderStats=renderStats=function(){_rs();inject()}}
 document.addEventListener("change",function(e){var t=e.target;if(!t||!t.id)return;if(t.id==="insby"){INS.by=t.value;inject()}else if(t.id==="insper"){INS.per=+t.value;inject()}});
-window.__insX={dishes:dishes,daily:daily,INS:INS,addD:addD,F0:F0,esc2:esc2,WD:WD,dm0:dm0,wdOf:wdOf};window.__insRender=inject;
+window.__insX={isDrink:isDrink,dishes:dishes,daily:daily,INS:INS,addD:addD,F0:F0,esc2:esc2,WD:WD,dm0:dm0,wdOf:wdOf};window.__insRender=inject;
 try{inject()}catch(e){}
 })();
 
@@ -2091,7 +2100,9 @@ function dishRows(a,b){var D=X.dishes(),rows=[],unk=[],totS=0;
 function secMargin(a,b){var d=dishRows(a,b),R=d.rows.sort(function(x,y){return y.profit-x.profit}),cu_=cu();
  var h='<p class="sub">Маржа = фактична виручка за одиницю мінус собівартість за техкартою (ціни інгредієнтів з накладних). Період: '+X.dm0(a)+' – '+X.dm0(b)+'.</p>';
  if(!R.length)return h+'<div class="note">Немає страв із повною собівартістю: у техкартах мають бути інгредієнти, а в товарів — ціна за одиницю (з накладних).</div>'+unkNote(d);
- h+=tbl(["Страва","Продано","Собів.","Маржа","Прибуток"],R.slice(0,12).map(function(r){return tr([esc(r.n),F0(r.q),F0(r.cost,2),{t:P(r.pct),cls:r.pct>=60?"i":r.pct<40?"e":""},{t:F0(r.profit),cls:"i"}])}));
+ var isD=X.isDrink||function(){return false},RD=R.filter(function(r){return !isD(r.n)}),RK=R.filter(function(r){return isD(r.n)});
+ function one(L,ttl,first){return '<h3 style="margin:12px 0 4px;font-size:1rem">'+ttl+'</h3>'+(L.length?tbl([first,"Продано","Собів.","Маржа","Прибуток"],L.slice(0,12).map(function(r){return tr([esc(r.n),F0(r.q),F0(r.cost,2),{t:P(r.pct),cls:r.pct>=60?"i":r.pct<40?"e":""},{t:F0(r.profit),cls:"i"}])})):'<div class="note">Немає позицій із повною собівартістю.</div>')}
+ h+=one(RD,"🍽 Страви","Страва")+one(RK,"🥤 Напої","Напій");
  var low=R.filter(function(r){return r.pct<50&&r.q>=5}).sort(function(x,y){return y.q-x.q}).slice(0,5);
  if(low.length)h+='<p class="sub">⚠ Низька маржа при великих продажах: '+low.map(function(r){return esc(r.n)+" ("+P(r.pct)+", "+F0(r.q)+" шт)"}).join(", ")+'. Подумайте про ціну чи рецептуру.</p>';
  var top=R.slice().sort(function(x,y){return y.pct-x.pct}).filter(function(r){return r.q>=3}).slice(0,3);
@@ -2192,33 +2203,6 @@ document.addEventListener("toggle",function(e){var d=e.target;if(d&&d.classList&
 document.addEventListener("click",function(e){if(e.target&&e.target.closest&&e.target.closest("#bizsend"))sendBiz(1)});
 document.addEventListener("change",function(e){var t=e.target;if(t&&t.id==="bizauto"){try{localStorage.setItem("latte-biz-auto",t.checked?"1":"0")}catch(x){}}});
 if(window.__insRender)window.__insRender();
-})();
-</script>
-<script>
-/* v44: дохід / витрати / прибуток по днях місяця на «Огляд» */
-(function(){
-var WD=["нд","пн","вт","ср","чт","пт","сб"];
-window.__days=function(k,nav){
- try{
-  var y=+k.slice(0,4),m=+k.slice(5),dim=new Date(y,m,0).getDate(),td=new Date().toLocaleDateString("sv"),
-      last=td.slice(0,7)===k?+td.slice(8):(td.slice(0,7)<k?0:dim),D=[];
-  for(var i=1;i<=dim;i++)D.push({i:0,e:0});
-  all().forEach(function(x){if(x.d&&x.d.slice(0,7)===k){var n=+x.d.slice(8)-1;if(D[n]){if(x.t==="i")D[n].i+=x.a;else if(x.t==="e")D[n].e+=x.a}}});
-  var mx=0,bi=-1,wi=-1,bp=-1e18,wp=1e18,ti=0,te=0,act=0;
-  D.forEach(function(d,n){d.p=d.i-d.e;if(n+1>last)return;ti+=d.i;te+=d.e;if(d.i||d.e){act++;mx=Math.max(mx,d.i,d.e);if(d.p>bp){bp=d.p;bi=n}if(d.p<wp){wp=d.p;wi=n}}});
-  if(!act)return "";
-  var h='<div class="c dd" style="margin:8px 0">'+(nav||'');
-  h+='<p class="sub" style="margin:0 0 6px">Зелене — дохід, червоне — витрати за день; праворуч прибуток. Робочих днів із рухом: <b>'+act+'</b>.'+(bi>=0?' Найкращий день: <b>'+(bi+1)+'-го</b> ('+f(bp)+'), найгірший: <b>'+(wi+1)+'-го</b> ('+f(wp)+').':"")+'</p>';
-  h+='<div class="tw"><table class="ddt"><thead><tr><th>День</th><th class="r">Дохід</th><th class="r">Витрати</th><th class="r">Прибуток</th><th class="ddb"></th></tr></thead><tbody>';
-  for(var n=0;n<dim;n++){var d=D[n];if(n+1>last)break;
-   var dt=new Date(y,m-1,n+1),w=dt.getDay(),iso=k+"-"+(n<9?"0":"")+(n+1),empty=!d.i&&!d.e;
-   h+='<tr class="'+(iso===td?"ddt0 ":"")+(w===0||w===6?"ddw ":"")+(empty?"dde":"")+'"><td>'+(n+1)+' <small class="sub">'+WD[w]+'</small></td><td class="r i">'+(d.i?f(d.i):"—")+'</td><td class="r e">'+(d.e?f(d.e):"—")+'</td><td class="r '+(d.p<0?"e":"i")+'"><b>'+(empty?"—":f(d.p))+'</b></td><td class="ddb">'+(empty?"":'<span class="ddi" style="width:'+Math.max(2,d.i/mx*100)+'%"></span><span class="dde2" style="width:'+Math.max(2,d.e/mx*100)+'%"></span>')+'</td></tr>'}
-  h+='</tbody><tfoot><tr><th>Разом</th><th class="r i">'+f(ti)+'</th><th class="r e">'+f(te)+'</th><th class="r '+(ti-te<0?"e":"i")+'">'+f(ti-te)+'</th><th></th></tr></tfoot></table></div>';
-  h+='<p class="sub">Разові великі витрати (оренда, закупівля, зарплата) падають на той день, коли їх внесено, тому прибуток окремого дня не завжди показовий. Дивіться сумарно за тиждень.</p></div>';
-  return h
- }catch(e){return ""}
-};
-[300,1200,3000].forEach(function(ms){setTimeout(function(){try{if(!document.querySelector('.c.dd'))renderOv()}catch(e){}},ms)});
 })();
 </script>
 </body>
