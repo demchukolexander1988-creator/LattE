@@ -312,7 +312,7 @@ var ks=[];for(var j=5;j>=0;j--)ks.push(new Date(d.getFullYear(),d.getMonth()-j,1
 var rec=all().sort(function(a,b){return b.d.localeCompare(a.d)||(b.ts||0)-(a.ts||0)}).slice(0,8);
 $("ov").innerHTML='<div class="row"><button class="b big" id="bscan">🧾 Сканувати чек</button><button class="b g" data-new="e">+ Витрата</button><button class="b g" data-new="i">+ Дохід</button><button class="b g" data-doc>📎 Word / Excel</button>'+(localStorage.getItem("latte-tg-url")?'<button class="b g" data-tg>🔄 Синхронізувати</button>':"")+'</div>'+
 '<div class="cards"><div class="c"><small>Дохід за поточний місяць</small><b class="i">'+money(c.i)+'</b>'+dl(c.i,p.i)+'</div><div class="c"><small>Витрати</small><b class="e">'+money(c.e)+'</b>'+dl(c.e,p.e,1)+'</div><div class="c"><small>Прибуток</small><b class="'+(c.i-c.e<0?"e":"i")+'">'+money(c.i-c.e)+'</b></div></div>'+
-'<h2>Останні 6 місяців</h2>'+chart(ks,a,"m")+'<h2>Останні операції</h2>'+(rec.length?rec.map(row).join(""):'<div class="note">Поки порожньо. Відскануйте перший чек або додайте операцію вручну.</div>')}
+'<h2>Останні операції</h2>'+(rec.length?rec.map(row).join(""):'<div class="note">Поки порожньо. Відскануйте перший чек або додайте операцію вручну.</div>')}
 var SELM={e:0,i:0},SELS={};
 var SRT=(function(){try{return JSON.parse(localStorage.getItem("latte-sort")||"{}")}catch(e){return{}}})();
 var CS=(function(){try{return localStorage.getItem("latte-cs")||"sum"}catch(e){return"sum"}})();
@@ -1529,7 +1529,7 @@ function todayBlock(){var el=$("ov");if(!el)return;var oc=el.querySelector(".car
  if(ck.length){h+='<small class="sub">Найбільші витрати</small>'+ck.map(function(c){return '<div class="bar"><span>'+esc(c)+'</span><i style="width:'+Math.max(2,cs[c]/cs[ck[0]]*40)+'%;background:var(--exp)"></i><span>'+f(cs[c])+' ('+f(cs[c]/tot*100)+'%)</span></div>'}).join("")}
  var wc=0;try{Object.keys(by).forEach(function(i){by[i].wo.forEach(function(m){if(new Date(m.ts).toLocaleDateString("sv").slice(0,7)===k)wc+=m.q*(by[i].it.p||0)})})}catch(e){}
  if(wc>0)h+='<p class="sub">Брак за місяць за цінами складу: <b>'+money(wc)+'</b> (уже враховано у витратах лише якщо ви вносили його вручну).</p>';
- h+=(window.__days?window.__days(k):"");h+='</div>';
+ h+='</div>';h+=(window.__days?window.__days(k,'<div class=\"row\"><button class=\"b g\" data-mpm=\"-1\" aria-label=\"Попередній місяць\">‹</button><b style=\"flex:1;text-align:center\">По днях: '+MN[+k.slice(5)-1]+' '+k.slice(0,4)+'</b><button class=\"b g\" data-mpm=\"1\" aria-label=\"Наступний місяць\"'+(cur?' disabled':'')+'>›</button></div>'):"");
  el.insertAdjacentHTML("afterbegin",h)}
 var _ro=renderOv;renderOv=function(){_ro();try{todayBlock()}catch(e){}};
 document.addEventListener("click",function(e){var t=e.target&&e.target.closest?e.target:null;if(!t)return;var b=t.closest("[data-go]");
@@ -1986,7 +1986,7 @@ function mark(){var b=$("more"),pop=$("morepop");if(!b)return;var tb=typeof tab!
 if(typeof showTab==="function"){var _st=showTab;window.showTab=showTab=function(t){_st(t);mark()}}
 more();
 })();
-(function(){var V="v45",D="19.11.2026";
+(function(){var V="v46",D="19.11.2026";
 function ver(){var s=document.getElementById("set");if(s&&!s.querySelector("#ver")){var p=document.createElement("p");p.id="ver";p.className="sub";p.style.cssText="margin:0 0 12px;font-weight:600";p.textContent="Версія застосунку: "+V+" · оновлено "+D;s.insertBefore(p,s.firstChild)}
  var m=document.getElementById("mode");if(m&&!document.getElementById("verside")){var q=document.createElement("p");q.id="verside";q.className="sub";q.textContent="Версія "+V;m.parentNode.appendChild(q)}}
 if(typeof renderSet==="function"){var _r=renderSet;window.renderSet=renderSet=function(){_r.apply(this,arguments);ver()}}
@@ -2198,7 +2198,7 @@ if(window.__insRender)window.__insRender();
 /* v44: дохід / витрати / прибуток по днях місяця на «Огляд» */
 (function(){
 var WD=["нд","пн","вт","ср","чт","пт","сб"];
-window.__days=function(k){
+window.__days=function(k,nav){
  try{
   var y=+k.slice(0,4),m=+k.slice(5),dim=new Date(y,m,0).getDate(),td=new Date().toLocaleDateString("sv"),
       last=td.slice(0,7)===k?+td.slice(8):(td.slice(0,7)<k?0:dim),D=[];
@@ -2207,18 +2207,18 @@ window.__days=function(k){
   var mx=0,bi=-1,wi=-1,bp=-1e18,wp=1e18,ti=0,te=0,act=0;
   D.forEach(function(d,n){d.p=d.i-d.e;if(n+1>last)return;ti+=d.i;te+=d.e;if(d.i||d.e){act++;mx=Math.max(mx,d.i,d.e);if(d.p>bp){bp=d.p;bi=n}if(d.p<wp){wp=d.p;wi=n}}});
   if(!act)return "";
-  var h='<details class="insd dd" open><summary style="font-size:1.05rem;margin:12px 0 6px">📅 По днях місяця</summary>';
+  var h='<div class="c dd" style="margin:8px 0">'+(nav||'');
   h+='<p class="sub" style="margin:0 0 6px">Зелене — дохід, червоне — витрати за день; праворуч прибуток. Робочих днів із рухом: <b>'+act+'</b>.'+(bi>=0?' Найкращий день: <b>'+(bi+1)+'-го</b> ('+f(bp)+'), найгірший: <b>'+(wi+1)+'-го</b> ('+f(wp)+').':"")+'</p>';
   h+='<div class="tw"><table class="ddt"><thead><tr><th>День</th><th class="r">Дохід</th><th class="r">Витрати</th><th class="r">Прибуток</th><th class="ddb"></th></tr></thead><tbody>';
   for(var n=0;n<dim;n++){var d=D[n];if(n+1>last)break;
    var dt=new Date(y,m-1,n+1),w=dt.getDay(),iso=k+"-"+(n<9?"0":"")+(n+1),empty=!d.i&&!d.e;
    h+='<tr class="'+(iso===td?"ddt0 ":"")+(w===0||w===6?"ddw ":"")+(empty?"dde":"")+'"><td>'+(n+1)+' <small class="sub">'+WD[w]+'</small></td><td class="r i">'+(d.i?f(d.i):"—")+'</td><td class="r e">'+(d.e?f(d.e):"—")+'</td><td class="r '+(d.p<0?"e":"i")+'"><b>'+(empty?"—":f(d.p))+'</b></td><td class="ddb">'+(empty?"":'<span class="ddi" style="width:'+Math.max(2,d.i/mx*100)+'%"></span><span class="dde2" style="width:'+Math.max(2,d.e/mx*100)+'%"></span>')+'</td></tr>'}
   h+='</tbody><tfoot><tr><th>Разом</th><th class="r i">'+f(ti)+'</th><th class="r e">'+f(te)+'</th><th class="r '+(ti-te<0?"e":"i")+'">'+f(ti-te)+'</th><th></th></tr></tfoot></table></div>';
-  h+='<p class="sub">Разові великі витрати (оренда, закупівля, зарплата) падають на той день, коли їх внесено, тому прибуток окремого дня не завжди показовий. Дивіться сумарно за тиждень.</p></details>';
+  h+='<p class="sub">Разові великі витрати (оренда, закупівля, зарплата) падають на той день, коли їх внесено, тому прибуток окремого дня не завжди показовий. Дивіться сумарно за тиждень.</p></div>';
   return h
  }catch(e){return ""}
 };
-[300,1200,3000].forEach(function(ms){setTimeout(function(){try{if(!document.querySelector('details.dd'))renderOv()}catch(e){}},ms)});
+[300,1200,3000].forEach(function(ms){setTimeout(function(){try{if(!document.querySelector('.c.dd'))renderOv()}catch(e){}},ms)});
 })();
 </script>
 </body>
