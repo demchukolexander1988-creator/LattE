@@ -504,7 +504,7 @@ CB="QR-оплати (розрахунок)",CT="QR-оплати (чайові)",
 function qrOn(){return !!(localStorage.getItem(QT)||"").trim()}
 function pl(n){var a=n%10,b=n%100;return a===1&&b!==11?"оплата":(a>=2&&a<=4&&(b<10||b>=20))?"оплати":"оплат"}
 function iso(d){return d.toLocaleDateString("sv")}
-function ensureCats(){var ch=0;[CASH,TERM,CB,CT].forEach(function(c){if(CFG.ci.indexOf(c)<0){var ix=CFG.ci.indexOf("Інше");if(ix<0)CFG.ci.push(c);else CFG.ci.splice(ix,0,c);ch=1}});if(ch){DOCS.cfg=CFG;persist("cfg",CFG)}}
+function ensureCats(){var ch=0;[CASH,TERM,CB,"Банкети (QR)","Доставка (QR)",CT].forEach(function(c){if(CFG.ci.indexOf(c)<0){var ix=CFG.ci.indexOf("Інше");if(ix<0)CFG.ci.push(c);else CFG.ci.splice(ix,0,c);ch=1}});if(ch){DOCS.cfg=CFG;persist("cfg",CFG)}}
 function markIds(ids){if(typeof syncOn==="function"&&syncOn()){var D={};try{D=JSON.parse(localStorage.getItem("latte-dirty")||"{}")}catch(e){}ids.forEach(function(id){D[id]=1});try{localStorage.setItem("latte-dirty",JSON.stringify(D))}catch(e){}setTimeout(function(){tgSync(1,1)},1500)}}
 function qrStatus(){var e=$("qrst");if(!e)return;var l=localStorage.getItem(QL);e.textContent=l?"Остання синхронізація: "+new Date(l).toLocaleString("uk-UA"):"Ще не синхронізовано."}
 async function qrSync(manual,full){
@@ -525,11 +525,11 @@ if(!r.ok)throw new Error(j.error||("Помилка сервера ("+r.status+")
 ensureCats();
 var ids=[],card=(CFG.pm.filter(function(x){return/карт/i.test(x)})[0]||CFG.pm[0]);
 (j.days||[]).forEach(function(x){
-[["b",CB,x.bill,"Розрахунок закритих замовлень (QR)"],["t",CT,x.tips,"Чайові (QR)"]].forEach(function(p){
+[["b",CB,x.bill-(x.bq||0)-(x.dl||0),"Розрахунок закритих замовлень (QR)",x.count-(x.bqn||0)-(x.dln||0)],["q","Банкети (QR)",x.bq||0,"Оплата залишку банкету (QR)",x.bqn||0],["d","Доставка (QR)",x.dl||0,"Оплата доставки (QR)",x.dln||0],["t",CT,x.tips,"Чайові (QR)",x.count]].forEach(function(p){
 var id="qr-"+x.d+"-"+p[0],a=Math.round(p[2])/100,old=DOCS[id];
 if(old&&old.man)return;
 if(a>0){
-var o={t:"i",d:x.d,a:a,c:p[1],v:"QR · "+x.count+" "+pl(x.count),m:card,g:"qr",n:p[3],s:0,q:x.count,ts:(old&&old.ts)||Date.now()};
+var o={t:"i",d:x.d,a:a,c:p[1],v:"QR · "+p[4]+" "+pl(p[4]),m:card,g:"qr",n:p[3],s:0,q:p[4],ts:(old&&old.ts)||Date.now()};
 if(!old||old.a!==o.a||old.q!==o.q){DOCS[id]=o;ids.push(id);if(col)persist(id,o)}
 }else if(old){delete DOCS[id];ids.push(id);if(col)persist(id,null)}
 })});
@@ -1986,7 +1986,7 @@ function mark(){var b=$("more"),pop=$("morepop");if(!b)return;var tb=typeof tab!
 if(typeof showTab==="function"){var _st=showTab;window.showTab=showTab=function(t){_st(t);mark()}}
 more();
 })();
-(function(){var V="v48",D="19.11.2026";
+(function(){var V="v50",D="19.11.2026";
 function ver(){var s=document.getElementById("set");if(s&&!s.querySelector("#ver")){var p=document.createElement("p");p.id="ver";p.className="sub";p.style.cssText="margin:0 0 12px;font-weight:600";p.textContent="Версія застосунку: "+V+" · оновлено "+D;s.insertBefore(p,s.firstChild)}
  var m=document.getElementById("mode");if(m&&!document.getElementById("verside")){var q=document.createElement("p");q.id="verside";q.className="sub";q.textContent="Версія "+V;m.parentNode.appendChild(q)}}
 if(typeof renderSet==="function"){var _r=renderSet;window.renderSet=renderSet=function(){_r.apply(this,arguments);ver()}}
@@ -2132,6 +2132,17 @@ function secBE(){var t=t0(),a=addD(t,-29),FIX=/оренд|комунал|зар�
  return h}
 
 function chan(c){c=c||"";if(isTip(c))return"tip";if(/банкет/i.test(c))return"Банкети";if(/достав/i.test(c))return"Доставка";if(/qr/i.test(c))return"QR (столик)";if(/гот|каса/i.test(c))return"Каса (готівка)";if(/термінал|картк/i.test(c))return"Термінал (картка)";return c||"Інше"}
+function costName(k){var m=mm(k),cost=null;if(m&&m.tc){var t=DOCS["sk:t:"+m.tc];if(t){var c=costOf(t);if(c.ok)cost=c.c}}else if(m&&m.it){var it=DOCS["sk:i:"+m.it];if(it&&it.p>0)cost=it.p}return cost}
+function bqCost(a,b){var cs=0,n=0,miss=0,ev=0;Object.keys(DOCS).forEach(function(k){if(k.indexOf("sk:x:")!==0)return;var A=DOCS[k];if(!A||!A.d||A.d<a||A.d>b)return;(A.bq||[]).forEach(function(g){ev++;(g.rows||[]).forEach(function(r){var c=costName(r.n),q=+r.q||0;if(c==null){miss++;return}cs+=c*q;n++})})});return{cost:cs,lines:n,miss:miss,events:ev}}
+function dlCost(a,b){var cs=0,sum=0,n=0,miss=0,days=0;Object.keys(DOCS).forEach(function(k){if(k.indexOf("sk:x:")!==0)return;var A=DOCS[k];if(!A||!A.d||A.d<a||A.d>b||!A.dl)return;days++;sum+=(A.dl.sum||0)/100;n+=A.dl.n||0;(A.dl.rows||[]).forEach(function(r){var c=costName(r.n),q=+r.q||0;if(c==null){miss++;return}cs+=c*q})});return{cost:cs,sum:sum,n:n,miss:miss,days:days}}
+function chanProfit(a,b,g){var bq=g["Банкети"]||0,dl=g["Доставка"]||0,DL=dlCost(a,b);if(DL.days){dl=DL.sum}if(!(bq>0||dl>0))return'<p class="sub">Банкети й доставка окремими каналами з\'являться після оновлення воркера (v116) і повної синхронізації QR-оплат.</p>';
+ var C=bqCost(a,b),h='<h3 style="margin:12px 0 4px;font-size:1rem">Банкети та доставка окремо</h3>',rows=[];
+ var tot=0;Object.keys(g).forEach(function(k){tot+=g[k]});
+ if(bq>0){var fc=C.lines?C.cost:null;rows.push(tr(["Банкети",F0(bq),P(bq/tot*100),fc==null?"—":F0(fc),fc==null?"—":{t:F0(bq-fc),cls:"i"},fc==null?"—":P((bq-fc)/bq*100)]))}
+ if(dl>0){var dc=DL.days?DL.cost:null;rows.push(tr(["Доставка та самовивіз"+(DL.n?" ("+DL.n+")":""),F0(dl),P(dl/tot*100),dc==null?"—":F0(dc),dc==null?"—":{t:F0(dl-dc),cls:"i"},dc==null?"—":P((dl-dc)/dl*100)]))}
+ h+=tbl(["Канал","Виручка","Частка","Собів. страв","Валовий прибуток","Маржа"],rows);
+ h+='<p class="sub">Банкети: виручка — оплати QR (залишок) за 30 днів; собівартість — страви з актів Checkbox (блок банкет) за техкартами'+(C.miss?', без техкарти: '+C.miss+' позицій':'')+'. Завдатки, внесені вручну, лежать у «Каса/Термінал», тож частка банкетів може бути занижена. '+(dl>0?DL.days?'Доставка й самовивіз: виручка за замовленнями (картка й готівка), собівартість страв за техкартами'+(DL.miss?', без техкарти: '+DL.miss+' позицій':'')+', пакування не враховано.':'Доставка: собівартість з\'явиться з наступних актів (потрібен воркер v117).':'')+'</p>';
+ return h}
 function secChan(){var t=t0(),a=addD(t,-29),g={},tip=0,tot=0;all().forEach(function(x){if(x.t!=="i"||x.d<a||x.d>t)return;var k=chan(x.c);if(k==="tip"){tip+=x.a;return}g[k]=(g[k]||0)+x.a;tot+=x.a});
  var ks=Object.keys(g).sort(function(x,y){return g[y]-g[x]});if(!ks.length)return '<div class="note">Немає доходів за 30 днів.</div>';
  var cashless=(g["Термінал (картка)"]||0)+(g["QR (столик)"]||0);
@@ -2139,6 +2150,7 @@ function secChan(){var t=t0(),a=addD(t,-29),g={},tip=0,tot=0;all().forEach(funct
  h+='<p class="sub">Безготівкові (термінал + QR): <b>'+P(pct(cashless,tot))+'</b>. Чайові QR: '+F0(tip)+' '+cu()+(tot>0?' ('+P(tip/tot*100)+' від виручки)':'')+'.</p>';
  var act=0;var D=X.dishes();Object.keys(D.by).forEach(function(k){act+=sm(D.by[k].s,a,t)});
  if(act>0){var df=tot-act;h+='<p class="sub">Звірка: продажі в актах Checkbox '+F0(act)+' ↔ доходи '+F0(tot)+' (різниця '+(df>=0?"+":"")+F0(df)+', це банкети, доставка, QR та дні без акта).</p>'}
+ h+=chanProfit(a,t,g);
  return h}
 
 function secMonths(){var t=t0(),rows=[],y=+t.slice(0,4),m=+t.slice(5,7),D=X.daily();
