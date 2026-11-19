@@ -194,6 +194,14 @@ nav#nav [data-t=more]{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 .ib{display:flex;align-items:center;gap:8px;font-size:.92rem;margin:8px 0}.ib i{display:block;height:12px;border-radius:8px;min-width:2px}.ib span:first-child{flex:0 0 34%}
 @media (max-width:760px){.insg{grid-template-columns:1fr 1fr}.insg .c b{font-size:1.15rem}.ib span:first-child{flex-basis:40%}}
 #ins td:nth-child(2),#ins th:nth-child(2){text-align:left}
+details.insd{margin:14px 0;border-top:1px solid var(--line,#0000001a);padding-top:4px}
+details.insd>summary{cursor:pointer;list-style:none;font-family:var(--serif,inherit);font-weight:700;font-size:1.25rem;margin:14px 0 10px;display:flex;align-items:center;gap:8px}
+details.insd>summary::-webkit-details-marker{display:none}
+details.insd>summary::after{content:"▾";margin-left:auto;color:var(--gold);transition:transform .2s}
+details.insd:not([open])>summary::after{transform:rotate(-90deg)}
+#ins details td:nth-child(2),#ins details th:nth-child(2){text-align:right}
+#ins details td:first-child,#ins details th:first-child{text-align:left}
+#verside{opacity:.6;font-size:.72rem;margin:6px 0 0}@media (max-width:760px){#verside{display:none}}
 </style>
 </head>
 <body>
@@ -750,7 +758,7 @@ function pubLater(){try{localStorage.setItem(PUBK,"1")}catch(e){}clearTimeout(pu
 function info(){if(!tok())return;api("/api/skx/info").then(function(j){SRV=j;if(view==="acc")render()}).catch(function(){})}
 
 /* ---- відображення ---- */
-function seg(){var V=[["bal","Залишки"],["go","🚀 Старт"],["ord","🛒 Замовлення"+(function(){try{var n=reorder().length;return n?" ("+n+")":""}catch(e){return ""}})()],["in","Прихід"],["rcb","Чеки з бота"+(botRcs().length?" ("+botRcs().length+")":"")],["tc","Техкарти"],["lu","🍱 Ланч"],["sa","Продажі"],["wo","Брак"],["ct","Підрахунки"],["its","Товари"],["new","Нові коди"+(pend().length?" ("+pend().length+")":"")],["acc","Доступ"]];
+function seg(){var V=[["bal","Залишки"],["go","🚀 Старт"],["wk","🧮 Закупівля на тиждень"],["ord","🛒 Замовлення"+(function(){try{var n=reorder().length;return n?" ("+n+")":""}catch(e){return ""}})()],["in","Прихід"],["rcb","Чеки з бота"+(botRcs().length?" ("+botRcs().length+")":"")],["tc","Техкарти"],["lu","🍱 Ланч"],["sa","Продажі"],["wo","Брак"],["ct","Підрахунки"],["its","Товари"],["new","Нові коди"+(pend().length?" ("+pend().length+")":"")],["acc","Доступ"]];
  return '<div class="row segrow">'+V.map(function(v){return '<button class="b '+(view===v[0]?"":"g")+'" data-skv="'+v[0]+'" style="white-space:nowrap">'+v[1]+'</button>'}).join("")+'<button class="b g" id="skpull" style="margin-left:auto;white-space:nowrap">🔄 Оновити</button></div>'}
 function vBal(){
  var by=calc(),q=(g("skq")&&g("skq").value)||"",ls=Object.keys(by).map(function(k){return by[k]}).filter(function(r){return !r.it.ns&&(!q||r.it.n.toLowerCase().indexOf(q.toLowerCase())>-1)});
@@ -1800,6 +1808,38 @@ document.addEventListener("change",function(e){var t=e.target;if(!t||view!=="go"
  if(t.id==="goday"){GOD=+t.value;render();return}
  if(t.dataset&&t.dataset.mnid){var v=num(t.value);goSet(t.dataset.mnid,isNaN(v)?0:v);toast("Мінімум збережено")}});
 
+window.__lk={matchSales:matchSales,calc:calc,items:items,tcs:tcs,moves:moves,fm:fm,mny:mny};
+/* v42: закупівля на тиждень за прогнозом продажів */
+var WKG={};
+function wkPlan(){
+ var cut=addDays(today(),-28),per={},days={};
+ Object.keys(DOCS).forEach(function(k){if(k.indexOf("sk:x:")!==0)return;var a=DOCS[k];if(!a||!a.d||a.d<cut)return;days[a.d]=1;
+  actRows(a).forEach(function(r){if(!r.tc&&!r.it)return;var key=(r.tc?"t:"+r.tc:"i:"+r.it),o=per[key]||(per[key]={tc:r.tc,it:r.it,nm:r.nm,w:[0,0,0,0,0,0,0],n:[0,0,0,0,0,0,0],tot:0});var wd=new Date(a.d+"T12:00:00").getDay();o.w[wd]+=r.q;o.tot+=r.q})});
+ var dl=Object.keys(days);dl.forEach(function(d){var wd=new Date(d+"T12:00:00").getDay();Object.keys(per).forEach(function(k){per[k].n[wd]++})});
+ var nd=Math.max(1,dl.length),fut=[];for(var i=1;i<=7;i++)fut.push(new Date(Date.now()+i*864e5).getDay());
+ var need={},dishes=0;
+ Object.keys(per).forEach(function(k){var o=per[k],q=0;fut.forEach(function(wd){var dn=0;for(var j=0;j<7;j++)dn+=o.n[j];q+=o.n[wd]>0?o.w[wd]/o.n[wd]:o.tot/nd});if(!(q>0))return;dishes++;
+  if(o.tc){var t=DOCS["sk:t:"+o.tc];if(t)(t.ing||[]).forEach(function(x){need[x.i]=(need[x.i]||0)+(x.q||0)*q})}else if(o.it)need[o.it]=(need[o.it]||0)+q});
+ return{need:need,nd:nd,dishes:dishes}}
+function addDays(d,n){var x=new Date(d+"T12:00:00");x.setDate(x.getDate()+n);return x.toLocaleDateString("sv")}
+function vWk(){
+ var P=wkPlan(),by=calc(),G={},tot=0,unk=0,rows=[];
+ Object.keys(P.need).forEach(function(id){var r=by[id];if(!r||r.it.ns)return;var st=r.calc;if(st==null){unk++;return}
+  var q=P.need[id]+(r.it.min||0)-Math.max(0,st);if(!(q>1e-9))return;q=rup(q,r.it);if(!(q>0))return;var v=supOf(r.it)||"Без постачальника",c=r.it.p>0?q*r.it.p:0;tot+=c;
+  (G[v]=G[v]||[]).push({it:r.it,q:q,need:P.need[id],st:st,c:c})});
+ WKG={};var ks=Object.keys(G).sort(function(a,b){return a.localeCompare(b,"uk")});
+ var h='<h2>🧮 Закупівля на тиждень</h2><p class="sub">Прогноз продажів на 7 днів (середнє за днями тижня за останні 4 тижні, '+P.nd+' днів з продажами) → потреба в інгредієнтах за техкартами → мінус залишок на складі, плюс мінімум. Ланчі, страви без техкарти й товари без підрахунку не враховані.</p>';
+ if(!P.dishes)return h+'<div class="note">Продажів з техкартами ще немає: прогноз з\'явиться після перших актів списання.</div>';
+ if(unk)h+='<p class="sub">⚠ Залишок невідомий для '+unk+' товарів (ще не пораховані): їх тут немає.</p>';
+ if(!ks.length)return h+'<div class="note">✅ Залишків вистачає на тиждень за прогнозом (з урахуванням мінімумів).</div>';
+ h+='<p class="sub">Орієнтовна сума закупівлі: <b>'+mny(tot)+'</b> (за ціною останнього приходу).</p>';
+ ks.forEach(function(v,n){var rows=G[v].sort(function(a,b){return a.it.n.localeCompare(b.it.n,"uk")}),sum=rows.reduce(function(a,r){return a+r.c},0);WKG["k"+n]={v:v,rows:rows.map(function(r){return{it:r.it,q:r.q}})};
+  h+='<h2>'+E(v)+(sum>0?' · ≈'+mny(sum):'')+'</h2><div class="tw"><table><thead><tr><th>Товар</th><th>Замовити</th><th>Потреба</th><th>Залишок</th></tr></thead><tbody>'+rows.map(function(r){return '<tr><td>'+E(r.it.n)+'</td><td><b>'+fm(r.q)+' '+E(r.it.u)+'</b></td><td>'+fm(r.need,2)+'</td><td>'+fm(r.st,2)+'</td></tr>'}).join("")+'</tbody></table></div><div class="row" style="margin-top:6px"><button class="b g" data-wkcp="k'+n+'">📋 Скопіювати для постачальника</button></div>'});
+ return h}
+vmap.wk=vWk;
+document.addEventListener("click",function(e){var b=e.target&&e.target.closest&&e.target.closest("[data-wkcp]");if(!b||view!=="wk")return;var o=WKG[b.dataset.wkcp];if(!o)return;var tx=ordText(o.v,o.rows);
+ var done=function(){toast("Скопійовано: "+o.v)};if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(tx).then(done,function(){showErr(tx)});else showErr(tx)});
+
 var _seg2=seg;seg=function(){var n=invPend().length;return _seg2().replace(/(<button class="b(?: g)?" data-skv="rcb")/,'<button class="b '+(view==="inv"?"":"g")+'" data-skv="inv" style="white-space:nowrap">📨 Накладні'+(n?" ("+n+")":"")+'</button>$1')};
 nav=function(){var n=pend().length+botRcs().length+invPend().length,b=document.querySelector('#nav [data-t="sk"]');if(b)b.textContent="Склад"+(n?" ("+n+")":"")};
 var _ro3=renderOv;renderOv=function(){_ro3();try{var n=invPend().length,c=$("ov")&&$("ov").querySelector(".c"),r=c&&c.querySelector(".row");if(n&&r)r.insertAdjacentHTML("afterend",'<div class="row" style="margin:6px 0"><button class="b g" data-go="inv" style="text-align:left;flex:1">📨 Накладних з пошти на перевірку: '+n+'</button></div>')}catch(e){}};
@@ -1933,6 +1973,11 @@ function mark(){var b=$("more"),pop=$("morepop");if(!b)return;var tb=typeof tab!
 if(typeof showTab==="function"){var _st=showTab;window.showTab=showTab=function(t){_st(t);mark()}}
 more();
 })();
+(function(){var V="v43",D="19.11.2026";
+function ver(){var s=document.getElementById("set");if(s&&!s.querySelector("#ver")){var p=document.createElement("p");p.id="ver";p.className="sub";p.style.cssText="margin:0 0 12px;font-weight:600";p.textContent="Версія застосунку: "+V+" · оновлено "+D;s.insertBefore(p,s.firstChild)}
+ var m=document.getElementById("mode");if(m&&!document.getElementById("verside")){var q=document.createElement("p");q.id="verside";q.className="sub";q.textContent="Версія "+V;m.parentNode.appendChild(q)}}
+if(typeof renderSet==="function"){var _r=renderSet;window.renderSet=renderSet=function(){_r.apply(this,arguments);ver()}}
+ver()})();
 </script>
 <script>
 /* v40: аналітика в Статистиці: прогнози, дні тижня, топ страв */
@@ -1990,12 +2035,150 @@ function build(){
   if(rows.length>15)h+='<p class="sub">Найслабші в періоді: '+low.map(function(r){return esc2(r.n)+" ("+F0(r.q)+" шт)"}).join(", ")+'. Кандидати на прибирання з меню або акцію.</p>';
   h+='<p class="sub">«Зміна» порівнює з попередніми такими самими днями. Заготовки на завтра: середня кількість за день — '+top10.slice(0,5).map(function(r){return esc2(r.n)+" ≈ "+F0(r.q/nd,1)}).join(", ")+'.</p>';
  }
- return h}
+ h+=(window.__insMore?window.__insMore():"");return h}
 function dm0(d){var a=d.split("-");return a[2]+"."+a[1]+"."+a[0].slice(2)}
 function inject(){var el=$("st");if(!el)return;var o=$("ins");if(o)o.remove();var d=document.createElement("div");d.id="ins";try{d.innerHTML=build()}catch(e){d.innerHTML='<div class="note">Аналітика недоступна: '+esc2(e&&e.message)+'</div>'}el.appendChild(d)}
 if(typeof renderStats==="function"){var _rs=renderStats;window.renderStats=renderStats=function(){_rs();inject()}}
 document.addEventListener("change",function(e){var t=e.target;if(!t||!t.id)return;if(t.id==="insby"){INS.by=t.value;inject()}else if(t.id==="insper"){INS.per=+t.value;inject()}});
+window.__insX={dishes:dishes,daily:daily,INS:INS,addD:addD,F0:F0,esc2:esc2,WD:WD,dm0:dm0,wdOf:wdOf};window.__insRender=inject;
 try{inject()}catch(e){}
+})();
+
+</script>
+<script>
+/* v42: прибутковість, фудкост, беззбитковість, канали, місяці, постачальники, зарплата, Telegram */
+(function(){
+var X=window.__insX;if(!X)return;
+var F0=X.F0,esc=X.esc2,addD=X.addD,OPEN={a:1,b:1,c:1},MC={};
+var DEFURL="https://latte-pay.demchukolexander1988.workers.dev";
+function cu(){try{return CFG.cur||"₴"}catch(e){return"₴"}}
+function t0(){return new Date().toLocaleDateString("sv")}
+function S(){return window.__lk||{}}
+function sm(o,a,b){var t=0;Object.keys(o).forEach(function(d){if(d>=a&&d<=b)t+=o[d]});return t}
+function isTip(c){return /чайов/i.test(c||"")}
+function inc(a,b,fn){var t=0;all().forEach(function(x){if(x.t==="i"&&x.d>=a&&x.d<=b&&!isTip(x.c)&&(!fn||fn(x)))t+=x.a});return t}
+function exp(a,b,re,notRe){var t=0;all().forEach(function(x){if(x.t==="e"&&x.d>=a&&x.d<=b&&(!re||re.test(x.c||""))&&(!notRe||!notRe.test(x.c||"")))t+=x.a});return t}
+function pct(a,b){return b>0?a/b*100:null}
+function P(v){return v==null?"—":F0(v,1)+"%"}
+function mm(n){if(MC[n]!==undefined)return MC[n];var r=null;try{r=S().matchSales?S().matchSales([{nm:n,q:1}])[0]:null}catch(e){}return MC[n]=r}
+function costOf(t){var c=0,ok=(t.ing||[]).length>0;(t.ing||[]).forEach(function(x){var it=DOCS["sk:i:"+x.i],p=it&&it.p>0?it.p:0;if(!(p>0))ok=false;c+=(x.q||0)*p});return{c:c,ok:ok}}
+function det(k,title,body){return '<details class="insd" data-k="'+k+'"'+(OPEN[k]?" open":"")+'><summary>'+title+'</summary>'+body+'</details>'}
+function tbl(head,rows){return '<div class="tw"><table><thead><tr>'+head.map(function(h){return '<th>'+h+'</th>'}).join("")+'</tr></thead><tbody>'+rows.join("")+'</tbody></table></div>'}
+function tr(c){return '<tr>'+c.map(function(x){return '<td'+(x&&x.cls?' class="'+x.cls+'"':"")+'>'+(x&&x.t!=null?x.t:x)+'</td>'}).join("")+'</tr>'}
+function fcCls(v){return v==null?"":v<=35?"i":v<=42?"":"e"}
+
+/* дані страв за період */
+function dishRows(a,b){var D=X.dishes(),rows=[],unk=[],totS=0;
+ Object.keys(D.by).forEach(function(k){var o=D.by[k],q=sm(o.q,a,b),s=sm(o.s,a,b);if(!(q>0))return;totS+=s;if(/^🍱/.test(k))return;
+  var m=mm(k),ur=s/q,cost=null;
+  if(m&&m.tc){var t=DOCS["sk:t:"+m.tc];if(t){var c=costOf(t);if(c.ok)cost=c.c}}else if(m&&m.it){var it=DOCS["sk:i:"+m.it];if(it&&it.p>0)cost=it.p}
+  if(cost==null)unk.push({n:k,q:q,s:s});else rows.push({n:k,q:q,s:s,ur:ur,cost:cost,pct:ur>0?(ur-cost)/ur*100:0,profit:(ur-cost)*q})});
+ return{rows:rows,unk:unk,totS:totS}}
+
+function secMargin(a,b){var d=dishRows(a,b),R=d.rows.sort(function(x,y){return y.profit-x.profit}),cu_=cu();
+ var h='<p class="sub">Маржа = фактична виручка за одиницю мінус собівартість за техкартою (ціни інгредієнтів з накладних). Період: '+X.dm0(a)+' – '+X.dm0(b)+'.</p>';
+ if(!R.length)return h+'<div class="note">Немає страв із повною собівартістю: у техкартах мають бути інгредієнти, а в товарів — ціна за одиницю (з накладних).</div>'+unkNote(d);
+ h+=tbl(["Страва","Продано","Собів.","Маржа","Прибуток"],R.slice(0,12).map(function(r){return tr([esc(r.n),F0(r.q),F0(r.cost,2),{t:P(r.pct),cls:r.pct>=60?"i":r.pct<40?"e":""},{t:F0(r.profit),cls:"i"}])}));
+ var low=R.filter(function(r){return r.pct<50&&r.q>=5}).sort(function(x,y){return y.q-x.q}).slice(0,5);
+ if(low.length)h+='<p class="sub">⚠ Низька маржа при великих продажах: '+low.map(function(r){return esc(r.n)+" ("+P(r.pct)+", "+F0(r.q)+" шт)"}).join(", ")+'. Подумайте про ціну чи рецептуру.</p>';
+ var top=R.slice().sort(function(x,y){return y.pct-x.pct}).filter(function(r){return r.q>=3}).slice(0,3);
+ if(top.length)h+='<p class="sub">Найвигідніші за відсотком: '+top.map(function(r){return esc(r.n)+" ("+P(r.pct)+")"}).join(", ")+'. Їх варто просувати.</p>';
+ return h+unkNote(d)}
+function unkNote(d){if(!d.unk.length)return "";var t=d.unk.sort(function(x,y){return y.s-x.s}).slice(0,5);return '<p class="sub">Без собівартості: '+d.unk.length+' позицій (немає інгредієнтів чи ціна товару 0). Найбільші за виручкою: '+t.map(function(r){return esc(r.n)}).join(", ")+'.</p>'}
+
+function foodcost(a,b){var d=dishRows(a,b),sc=0,sr=0;d.rows.forEach(function(r){sc+=r.cost*r.q;sr+=r.s});
+ var rev=inc(a,b),buy=exp(a,b,/продукт|сировин/i);
+ return{th:sr>0?sc/sr*100:null,cov:d.totS>0?sr/d.totS*100:null,buy:rev>0?buy/rev*100:null,rev:rev,buyS:buy}}
+function secFood(){var t=t0(),a=addD(t,-29),f=foodcost(a,t),ym=t.slice(0,7),f2=foodcost(ym+"-01",t);
+ var h='<div class="insg"><div class="c"><small>За техкартами (30 дн.)</small><b class="'+fcCls(f.th)+'">'+P(f.th)+'</b><span class="sub">'+(f.cov==null?"немає даних":"охоплено "+F0(f.cov)+"% продажів з актів")+'</span></div>'
+  +'<div class="c"><small>За закупівлями (30 дн.)</small><b class="'+fcCls(f.buy)+'">'+P(f.buy)+'</b><span class="sub">«Продукти» та «Сировина» ÷ виручка</span></div>'
+  +'<div class="c"><small>За закупівлями, цей місяць</small><b class="'+fcCls(f2.buy)+'">'+P(f2.buy)+'</b><span class="sub">'+F0(f2.buyS)+' '+cu()+' закупівель</span></div></div>'
+  +'<p class="sub">Норма для кафе: 28–35%. Розбіжність між двома цифрами означає втрати, невнесені накладні або неповні техкарти. Закупівлі коливаються від тижня до тижня (запас), тож дивіться на місяць.</p>';
+ return h}
+
+function secBE(){var t=t0(),a=addD(t,-29),FIX=/оренд|комунал|зарплат|податк|генератор|реклам/i,fixed=exp(a,t,FIX),perDay=fixed/30,f=foodcost(a,t),v=(f.cov!=null&&f.cov>=50?f.th:f.buy);
+ if(v==null||v>=100)return '<div class="note">Замало даних для розрахунку (потрібні закупівлі або техкарти з ціною).</div>';
+ var be=perDay/(1-v/100),D=X.daily(),days=Object.keys(D.r).filter(function(d){return D.r[d]>0&&d>=addD(t,-13)}),avg=days.length?days.reduce(function(s,d){return s+D.r[d]},0)/days.length:0,safe=avg>0?(avg-be)/avg*100:null;
+ var wd=[1,2,3,4,5,6,0].map(function(i){var n=0,s=0;Object.keys(D.r).forEach(function(d){if(D.r[d]>0&&X.wdOf(d)===i){n++;s+=D.r[d]}});return{i:i,a:n?s/n:0,n:n}});
+ var h='<div class="insg"><div class="c"><small>Беззбитковість</small><b>≈ '+F0(be)+' '+cu()+'/день</b><span class="sub">постійні '+F0(fixed)+' за 30 дн. (оренда, комунальні, зарплата, податки, реклама, генератор), фудкост '+P(v)+'</span></div>'
+  +'<div class="c"><small>Середня виручка (14 дн.)</small><b>'+F0(avg)+' '+cu()+'</b><span class="sub">'+days.length+' днів із даними</span></div>'
+  +'<div class="c"><small>Запас міцності</small><b class="'+(safe==null?"":safe>=0?"i":"e")+'">'+(safe==null?"—":(safe>=0?"+":"")+F0(safe)+"%")+'</b><span class="sub">'+(safe!=null&&safe<0?"середній день нижче нуля":"наскільки виручка вища за поріг")+'</span></div></div>';
+ var below=wd.filter(function(o){return o.n>0&&o.a<be});
+ h+='<p class="sub">'+(below.length?'Нижче беззбитковості в середньому: '+below.map(function(o){return X.WD[o.i]+" ("+F0(o.a)+")"}).join(", ")+'. Тут допоможуть акції чи скорочення витрат.':'Усі дні тижня в середньому вище порога.')+'</p>';
+ return h}
+
+function chan(c){c=c||"";if(isTip(c))return"tip";if(/банкет/i.test(c))return"Банкети";if(/достав/i.test(c))return"Доставка";if(/qr/i.test(c))return"QR (столик)";if(/гот|каса/i.test(c))return"Каса (готівка)";if(/термінал|картк/i.test(c))return"Термінал (картка)";return c||"Інше"}
+function secChan(){var t=t0(),a=addD(t,-29),g={},tip=0,tot=0;all().forEach(function(x){if(x.t!=="i"||x.d<a||x.d>t)return;var k=chan(x.c);if(k==="tip"){tip+=x.a;return}g[k]=(g[k]||0)+x.a;tot+=x.a});
+ var ks=Object.keys(g).sort(function(x,y){return g[y]-g[x]});if(!ks.length)return '<div class="note">Немає доходів за 30 днів.</div>';
+ var cashless=(g["Термінал (картка)"]||0)+(g["QR (столик)"]||0);
+ var h='<p class="sub">Останні 30 днів. Чайові QR показані окремо й у виручку не входять.</p>'+tbl(["Канал","Сума","Частка","На день"],ks.map(function(k){return tr([esc(k),F0(g[k]),P(g[k]/tot*100),F0(g[k]/30)])}).concat([tr(['<b>Разом без чайових</b>','<b>'+F0(tot)+'</b>','100%',F0(tot/30)])]));
+ h+='<p class="sub">Безготівкові (термінал + QR): <b>'+P(pct(cashless,tot))+'</b>. Чайові QR: '+F0(tip)+' '+cu()+(tot>0?' ('+P(tip/tot*100)+' від виручки)':'')+'.</p>';
+ var act=0;var D=X.dishes();Object.keys(D.by).forEach(function(k){act+=sm(D.by[k].s,a,t)});
+ if(act>0){var df=tot-act;h+='<p class="sub">Звірка: продажі в актах Checkbox '+F0(act)+' ↔ доходи '+F0(tot)+' (різниця '+(df>=0?"+":"")+F0(df)+', це банкети, доставка, QR та дні без акта).</p>'}
+ return h}
+
+function secMonths(){var t=t0(),rows=[],y=+t.slice(0,4),m=+t.slice(5,7),D=X.daily();
+ for(var i=0;i<6;i++){var d=new Date(y,m-1-i,1),k=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2),a=k+"-01",b=k+"-31",rv=inc(a,b),ex=exp(a,b,null,/чайов/i),buy=exp(a,b,/продукт|сировин/i),pay=exp(a,b,/зарплат/i),n=Object.keys(D.r).filter(function(x){return x.slice(0,7)===k&&D.r[x]>0}).length;
+  if(rv===0&&ex===0)continue;rows.push({k:k,rv:rv,ex:ex,pr:rv-ex,buy:pct(buy,rv),pay:pct(pay,rv),avg:n?rv/n:0,n:n})}
+ if(!rows.length)return '<div class="note">Немає даних.</div>';
+ var MN=["Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
+ var h=tbl(["Місяць","Виручка","Витрати","Прибуток","Закупівлі","Зарплата","На день"],rows.map(function(r){return tr([MN[+r.k.slice(5)-1]+" "+r.k.slice(2,4),F0(r.rv),F0(r.ex),{t:F0(r.pr),cls:r.pr<0?"e":"i"},P(r.buy),P(r.pay),F0(r.avg)+' ('+r.n+' дн.)'])}));
+ var dn=+t.slice(8),pm=new Date(y,m-2,1),pk=pm.getFullYear()+"-"+("0"+(pm.getMonth()+1)).slice(-2),cur=inc(t.slice(0,7)+"-01",t),prev=inc(pk+"-01",pk+"-"+("0"+dn).slice(-2));
+ if(prev>0)h+='<p class="sub">Однакові дні (1–'+dn+'): цей місяць '+F0(cur)+' проти '+F0(prev)+' минулого: <b class="'+(cur>=prev?"i":"e")+'">'+(cur>=prev?"▲ +":"▼ ")+F0((cur-prev)/prev*100,1)+'%</b>.</p>';
+ var ly=(y-1)+"-"+t.slice(5,7),lyv=inc(ly+"-01",ly+"-31");if(lyv>0)h+='<p class="sub">Рік тому ('+ly+'): '+F0(lyv)+'.</p>';
+ return h+'<p class="sub">Закупівлі й зарплата у відсотках від виручки (без чайових). Витрати без виплат чайових персоналу.</p>'}
+
+function secSup(){var t=t0(),a=addD(t,-29),g={},tot=0;all().forEach(function(x){if(x.t!=="e"||x.d<a||x.d>t||/зарплат|чайов|податк/i.test(x.c||""))return;var k=(x.v||"").trim()||"Без назви";var o=g[k]||(g[k]={s:0,n:0});o.s+=x.a;o.n++;tot+=x.a});
+ var ks=Object.keys(g).sort(function(x,y){return g[y].s-g[x].s}).slice(0,10),h="";
+ h+=ks.length?tbl(["Постачальник / одержувач","Сума","Частка","Чеків"],ks.map(function(k){return tr([esc(k),F0(g[k].s),P(g[k].s/tot*100),g[k].n])})):'<div class="note">Немає витрат за 30 днів.</div>';
+ var mv=(S().moves?S().moves():[]).filter(function(m){return m.k==="in"&&m.p>0}).sort(function(x,y){return x.ts-y.ts}),by={};mv.forEach(function(m){(by[m.i]=by[m.i]||[]).push(m)});
+ var ch=[];Object.keys(by).forEach(function(i){var L=by[i];if(L.length<2)return;var l=L[L.length-1],p=L[L.length-2],it=DOCS["sk:i:"+i];if(!it||p.p<=0)return;var d=(l.p-p.p)/p.p*100;if(Math.abs(d)>=5)ch.push({n:it.n,p0:p.p,p1:l.p,d:d,v:l.v||"",dt:l.d||""})});
+ ch.sort(function(x,y){return Math.abs(y.d)-Math.abs(x.d)});
+ if(ch.length)h+='<p class="sub">Зміна ціни при останньому приході (від 5%):</p>'+tbl(["Товар","Було","Стало","Зміна","Де"],ch.slice(0,10).map(function(r){return tr([esc(r.n),F0(r.p0,2),F0(r.p1,2),{t:(r.d>0?"▲ +":"▼ ")+F0(r.d,1)+"%",cls:r.d>0?"e":"i"},esc(r.v)+(r.dt?" · "+X.dm0(r.dt):"")])}));
+ else h+='<p class="sub">Змін цін (від 5%) між приходами поки немає: потрібні накладні з цінами.</p>';
+ return h+'<p class="sub">Постачальники рахуються за полем «Постачальник» у витратах за 30 днів (без зарплати, чайових, податків).</p>'}
+
+function secPay(){var t=t0(),y=+t.slice(0,4),m=+t.slice(5,7),rows=[];
+ for(var i=0;i<3;i++){var d=new Date(y,m-1-i,1),k=d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2),pay=0,hrs=0,tips=0;
+  all().forEach(function(x){if(x.t!=="e"||x.d.slice(0,7)!==k)return;if(/чайов/i.test(x.c||""))tips+=x.a;else if(/зарплат/i.test(x.c||"")){pay+=x.a;var q=/(\d+):(\d+)\s*год/.exec(x.v||"");if(q)hrs+=(+q[1])+(+q[2])/60}});
+  var rv=inc(k+"-01",k+"-31");if(!pay&&!rv)continue;rows.push({k:k,pay:pay,hrs:hrs,tips:tips,rv:rv})}
+ if(!rows.length)return '<div class="note">Немає даних про зарплату. Натисніть «Оновити» у розділі «Зарплата».</div>';
+ var MN=["Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
+ return tbl(["Місяць","Зарплата","Годин","% виручки","Виручка/год","Вартість год.","Чайові"],rows.map(function(r){var p=pct(r.pay,r.rv);return tr([MN[+r.k.slice(5)-1]+" "+r.k.slice(2,4),F0(r.pay),r.hrs?F0(r.hrs):"—",{t:P(p),cls:p==null?"":p<=30?"i":p>38?"e":""},r.hrs?F0(r.rv/r.hrs):"—",r.hrs?F0(r.pay/r.hrs,1):"—",F0(r.tips)])}))+'<p class="sub">Зарплата з табеля (години × ставка + премії). Норма для кафе: 25–35% виручки. Чайові (QR) розподіляються між працівниками й у виручку не входять.</p>'}
+
+/* Telegram-звіт */
+function biz(){var t=t0(),L=["📊 Latte Cafe · підсумок "+X.dm0(t)],D=X.daily(),a7=addD(t,-6),p7=addD(t,-13),r7=sm(D.r,a7,t),pr7=sm(D.r,p7,addD(t,-7)),f=foodcost(addD(t,-29),t);
+ L.push("Виручка сьогодні: "+F0(D.r[t]||0)+" "+cu()+" · вчора: "+F0(D.r[addD(t,-1)]||0));
+ L.push("7 днів: "+F0(r7)+(pr7>0?" ("+(r7>=pr7?"+":"")+F0((r7-pr7)/pr7*100,1)+"% до попередніх 7)":""));
+ L.push("Фудкост 30 дн.: техкарти "+P(f.th)+" · закупівлі "+P(f.buy));
+ var rv30=inc(addD(t,-29),t),pay30=exp(addD(t,-29),t,/зарплат/i);L.push("Зарплата: "+P(pct(pay30,rv30))+" виручки (30 дн.)");
+ var g={},tot=0;all().forEach(function(x){if(x.t==="i"&&x.d>=addD(t,-29)&&!isTip(x.c)){var k=chan(x.c);g[k]=(g[k]||0)+x.a;tot+=x.a}});L.push("Канали 30 дн.: "+Object.keys(g).sort(function(x,y){return g[y]-g[x]}).slice(0,4).map(function(k){return k+" "+P(g[k]/tot*100)}).join(" · "));
+ try{var d=dishRows(addD(t,-13),t).rows.sort(function(x,y){return y.profit-x.profit}).slice(0,3);if(d.length)L.push("Найприбутковіші (14 дн.): "+d.map(function(r){return r.n+" ("+F0(r.profit)+")"}).join(", "))}catch(e){}
+ return L}
+function sendBiz(manual){var tk=(localStorage.getItem("latte-qr-token")||"").trim();if(!tk){if(manual)showErr("Спершу введіть токен у Налаштуваннях (розділ «QR-оплати»).");return Promise.resolve()}
+ var u=(localStorage.getItem("latte-qr-url")||DEFURL).trim().replace(/\/+$/,"");
+ return fetch(u+"/api/skx/report",{method:"POST",headers:{"Authorization":"Bearer "+tk,"Content-Type":"application/json"},body:JSON.stringify({lines:biz()})}).then(function(r){if(!r.ok)throw new Error("Помилка сервера ("+r.status+")");try{localStorage.setItem("latte-biz-rep",t0())}catch(e){}if(manual)toast("Бізнес-звіт надіслано в Telegram")}).catch(function(e){if(manual)showErr("Звіт: "+((e&&e.message)||"помилка"))})}
+function auto(){if(localStorage.getItem("latte-biz-auto")!=="1")return;var h=+new Date().toLocaleTimeString("en-GB",{timeZone:"Europe/Kiev",hour:"2-digit"}).slice(0,2);if(h>=22&&localStorage.getItem("latte-biz-rep")!==t0()){try{localStorage.setItem("latte-biz-rep",t0())}catch(e){}sendBiz(0)}}
+setInterval(auto,300000);setTimeout(auto,20000);
+function secTg(){return '<div class="row"><button class="b" id="bizsend">📨 Надіслати бізнес-звіт у Telegram</button></div><div class="row"><label class="sub"><input type="checkbox" id="bizauto"'+(localStorage.getItem("latte-biz-auto")==="1"?" checked":"")+'> надсилати щодня після 22:00, якщо застосунок відкритий</label></div><p class="sub">У звіті: виручка, 7 днів, фудкост, частка зарплати, канали оплати, найприбутковіші страви. Telegram лише отримує звіт.</p>'}
+
+window.__insMore=function(){MC={};var t=t0(),a=addD(t,-INS_per()+1),h="";
+ var sec=function(k,title,fn){try{h+=det(k,title,fn())}catch(e){h+=det(k,title,'<div class="note">Розділ недоступний: '+esc(e&&e.message)+'</div>')}};
+ var per=INS_per(),a2=per>0?addD(t,-per+1):"0000-00-00";
+ sec("a","💰 Прибутковість страв",function(){return secMargin(a2,t)});
+ sec("b","🥗 Фудкост",secFood);
+ sec("c","⚖️ Беззбитковість",secBE);
+ sec("d","💳 Канали оплати: каса, термінал, QR, банкети",secChan);
+ sec("e","📅 Порівняння місяців",secMonths);
+ sec("f","🚚 Постачальники та ціни",secSup);
+ sec("g","👥 Зарплата й виручка",secPay);
+ sec("h","📨 Звіт у Telegram",secTg);
+ return h};
+function INS_per(){var p=X.INS.per;return p>0?p:0}
+document.addEventListener("toggle",function(e){var d=e.target;if(d&&d.classList&&d.classList.contains("insd")){OPEN[d.dataset.k]=d.open?1:0}},true);
+document.addEventListener("click",function(e){if(e.target&&e.target.closest&&e.target.closest("#bizsend"))sendBiz(1)});
+document.addEventListener("change",function(e){var t=e.target;if(t&&t.id==="bizauto"){try{localStorage.setItem("latte-biz-auto",t.checked?"1":"0")}catch(x){}}});
+if(window.__insRender)window.__insRender();
 })();
 </script>
 </body>
