@@ -373,6 +373,7 @@ html.v51priv td:first-child{filter:none}
 }
 @media print{.v51-tabs,.v51-sub,.v51-tools,.v51-add,#v51lock{display:none!important}}
 </style>
+<style id="v53">#dlgr label.rsub{margin:-4px 0 10px 14px;padding-left:12px;border-left:3px solid var(--gold2,#d9ad63);font-size:.9rem;color:var(--mut)}#dlgr label.rsub input{margin-top:4px}#rbq:empty{display:none}</style>
 </head>
 <body>
 <div class="w app">
@@ -405,8 +406,11 @@ html.v51priv td:first-child{filter:none}
 <dialog id="dlgr"><form method="dialog" onsubmit="return false">
 <h2 style="margin-top:0">Виручка за день</h2>
 <label>Дата<input type="date" id="rd"></label>
-<label>Готівка<input id="rc" inputmode="decimal" placeholder="0,00"></label>
-<label>Термінал (картка)<input id="rk" inputmode="decimal" placeholder="0,00"></label>
+<label>Готівка (уся сума в касі)<input id="rc" inputmode="decimal" placeholder="0,00"></label>
+<label class="rsub">🎉 з них за банкет готівкою<input id="rbc" inputmode="decimal" placeholder="0,00"></label>
+<label>Термінал (уся сума за звітом)<input id="rk" inputmode="decimal" placeholder="0,00"></label>
+<label class="rsub">🎉 з них за банкет терміналом<input id="rbt" inputmode="decimal" placeholder="0,00"></label>
+<p class="sub" id="rbq"></p>
 <h2>QR-код</h2>
 <label>Розрахунок<input id="rb" inputmode="decimal" placeholder="0,00"></label>
 <label>Чайові<input id="rt" inputmode="decimal" placeholder="0,00"></label>
@@ -735,28 +739,35 @@ Object.keys(DOCS).forEach(function(k){var d=DOCS[k];if(k!=="cfg"&&d&&d.c===oldc)
 if(!ids.length)return;
 if(col){ids.forEach(function(id){persist(id,DOCS[id])})}else{try{localStorage.setItem("latte-fin",JSON.stringify(DOCS))}catch(e){}markIds(ids)}}
 migrate();var _rdy=ready;ready=function(){migrate();_rdy()};
-function rid(d){return{c:"rev-"+d+"-c",k:"rev-"+d+"-k",b:"qr-"+d+"-b",t:"qr-"+d+"-t"}}
+function rid(d){return{c:"rev-"+d+"-c",k:"rev-"+d+"-k",bc:"rev-"+d+"-bc",bt:"rev-"+d+"-bt",b:"qr-"+d+"-b",t:"qr-"+d+"-t",q:"qr-"+d+"-q"}}
+function bqCat(){var B=CFG.ci.filter(function(c){return /банкет/i.test(c)&&!/qr/i.test(c)})[0];if(!B){B="Банкети";var bi=CFG.ci.indexOf("Інше");if(bi<0)CFG.ci.push(B);else CFG.ci.splice(bi,0,B);DOCS.cfg=CFG;persist("cfg",CFG)}return B}
+function rbqInfo(){var d=$("rd").value||today(),I=rid(d),q=DOCS[I.q]?DOCS[I.q].a:0,bc=pn($("rbc").value),bt=pn($("rbt").value),c=pn($("rc").value),k=pn($("rk").value),w=[];
+ if(bc>c)w.push("⚠️ Банкет готівкою більший за всю готівку: готівка — уся сума в касі, банкет — її частина.");if(bt>k)w.push("⚠️ Банкет терміналом більший за весь термінал.");
+ var tot=bc+bt+q;$("rbq").textContent=(tot>0?"Банкет за день разом: "+money(tot)+(q?" (з них через QR "+money(q)+", з сервера)":"")+". Каса без банкету: "+money(Math.max(0,c-bc))+", термінал без банкету: "+money(Math.max(0,k-bt))+". ":q?"Банкет через QR за цей день: "+money(q)+" (з сервера). ":"")+w.join(" ")}
 function num(v){return v>0?String(v).replace(".",","):""}
 function pn(x){var v=parseFloat(String(x||"").replace(/\s/g,"").replace(",","."));return v>0?Math.round(v*100)/100:0}
 function revFill(){var d=$("rd").value||today(),I=rid(d),g=function(id){return DOCS[id]?DOCS[id].a:0};
-$("rc").value=num(g(I.c));$("rk").value=num(g(I.k));$("rb").value=num(g(I.b));$("rt").value=num(g(I.t));
+$("rc").value=num(Math.round((g(I.c)+g(I.bc))*100)/100);$("rk").value=num(Math.round((g(I.k)+g(I.bt))*100)/100);$("rbc").value=num(g(I.bc));$("rbt").value=num(g(I.bt));$("rb").value=num(g(I.b));$("rt").value=num(g(I.t));
 var srv=(DOCS[I.b]&&!DOCS[I.b].man)||(DOCS[I.t]&&!DOCS[I.t].man);
 $("rqh").textContent=srv?"QR-суми підтягнуто з сервера. Якщо змінити їх тут, ручне значення стане головним, і сервер його більше не перезапише.":"Якщо підключено сервер QR-оплат, суми з'являться автоматично. Ручне значення має пріоритет.";
-var own={};[I.c,I.k,I.b,I.t].forEach(function(id){own[id]=1});
+var own={};[I.c,I.k,I.bc,I.bt,I.b,I.t,I.q].forEach(function(id){own[id]=1});rbqInfo();
 var o=all().filter(function(x){return x.t==="i"&&x.d===d&&!own[x.id]});
 $("rinfo").textContent=o.length?"За цей день є інші записи доходів: "+o.length+" на суму "+money(o.reduce(function(s,x){return s+x.a},0))+". Вони не змінюються.":""}
-function revSet(id,cat,a,m,manual,d){var old=DOCS[id];
-if(a>0){if(old&&old.a===a)return false;
-var o={t:"i",d:d,a:a,c:cat,v:"Денна виручка",m:m,g:"виручка",n:"",s:0,ts:(old&&old.ts)||Date.now()};
+function revSet(id,cat,a,m,manual,d,vv){var old=DOCS[id];
+if(a>0){if(old&&old.a===a&&old.c===cat)return false;
+var o={t:"i",d:d,a:a,c:cat,v:vv||"Денна виручка",m:m,g:"виручка",n:"",s:0,ts:(old&&old.ts)||Date.now()};
 if(manual){o.man=1;o.q=(old&&old.q)||0}
 DOCS[id]=o;persist(id,o);return true}
 if(old){delete DOCS[id];persist(id,null);return true}
 return false}
-$("rd").onchange=revFill;
+$("rd").onchange=revFill;["rc","rk","rbc","rbt"].forEach(function(i){$(i).addEventListener("input",rbqInfo)});
 $("rcx").onclick=function(){$("dlgr").close()};
 $("rsv").onclick=function(){var d=$("rd").value||today(),I=rid(d),pm=CFG.pm,cash=pm.filter(function(x){return/гот/i.test(x)})[0]||pm[0],card=pm.filter(function(x){return/карт/i.test(x)})[0]||pm[0];
-ensureCats();
-var ch=[revSet(I.c,CASH,pn($("rc").value),cash,0,d),revSet(I.k,TERM,pn($("rk").value),card,0,d),revSet(I.b,CB,pn($("rb").value),card,1,d),revSet(I.t,CT,pn($("rt").value),card,1,d)];
+var C0=pn($("rc").value),K0=pn($("rk").value),BC=pn($("rbc").value),BT=pn($("rbt").value);
+if(BC>C0){showErr("Банкет готівкою ("+money(BC)+") більший за всю готівку дня ("+money(C0)+"). Готівка — це вся сума в касі, банкет — її частина.");return}
+if(BT>K0){showErr("Банкет терміналом ("+money(BT)+") більший за весь термінал дня ("+money(K0)+"). Термінал — уся сума за звітом, банкет — її частина.");return}
+ensureCats();var BQ=(BC||BT||DOCS[I.bc]||DOCS[I.bt])?bqCat():"";
+var ch=[revSet(I.c,CASH,Math.round((C0-BC)*100)/100,cash,0,d),revSet(I.k,TERM,Math.round((K0-BT)*100)/100,card,0,d),revSet(I.bc,BQ,BC,cash,0,d,"Банкет · готівка"),revSet(I.bt,BQ,BT,card,0,d,"Банкет · термінал"),revSet(I.b,CB,pn($("rb").value),card,1,d),revSet(I.t,CT,pn($("rt").value),card,1,d)];
 $("dlgr").close();renderAll();toast(ch.some(Boolean)?"Виручку за "+d.split("-").reverse().join(".")+" збережено":"Змін немає")};
 document.addEventListener("click",function(e){if(e.target.closest&&e.target.closest("[data-rev]")){$("rd").value=today();revFill();$("dlgr").showModal()}});
 var ir=$("i")&&$("i").querySelector(".row");if(ir)ir.insertAdjacentHTML("beforeend",'<button class="b g" data-rev>+ Виручка за день</button>');
@@ -2148,7 +2159,7 @@ function mark(){var b=$("more"),pop=$("morepop");if(!b)return;var tb=typeof tab!
 if(typeof showTab==="function"){var _st=showTab;window.showTab=showTab=function(t){_st(t);mark()}}
 more();
 })();
-(function(){var V="v52",D="20.11.2026";
+(function(){var V="v53",D="20.11.2026";
 function ver(){var s=document.getElementById("set");if(s&&!s.querySelector("#ver")){var p=document.createElement("p");p.id="ver";p.className="sub";p.style.cssText="margin:0 0 12px;font-weight:600";p.textContent="Версія застосунку: "+V+" · оновлено "+D;s.insertBefore(p,s.firstChild)}
  var m=document.getElementById("mode");if(m&&!document.getElementById("verside")){var q=document.createElement("p");q.id="verside";q.className="sub";q.textContent="Версія "+V;m.parentNode.appendChild(q)}}
 if(typeof renderSet==="function"){var _r=renderSet;window.renderSet=renderSet=function(){_r.apply(this,arguments);ver()}}
