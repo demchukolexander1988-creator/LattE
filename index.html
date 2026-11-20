@@ -1642,7 +1642,7 @@ document.addEventListener("click",async function(ev){
  if(el=t.closest("[data-ign]")){if(await ask("Прибрати цей запис без зарахування?"))ignore(el.dataset.ign);return}
  if(t.closest("#skcopy")){var u=srv()+"/scan";try{await navigator.clipboard.writeText(u);toast("Посилання скопійовано")}catch(e){showErr(u)}return}
  if(t.closest("#skshare")){var u2=srv()+"/scan";if(navigator.share){navigator.share({title:"Склад: сканер",url:u2}).catch(function(){})}else{try{await navigator.clipboard.writeText(u2);toast("Посилання скопійовано")}catch(e){showErr(u2)}}return}
- if(t.closest("#skcodego")){var c=g("skcode").value.trim();if(!/^[A-Za-z0-9]{4,20}$/.test(c)){showErr("Код: 4–20 латинських літер або цифр (перемкніть клавіатуру на англійську).");return}
+ if(t.closest("#skcodego")){var c=g("skcode").value.trim();if(!/^[A-Za-z0-9]{6,20}$/.test(c)){showErr("Код: 6–20 латинських літер або цифр (перемкніть клавіатуру на англійську).");return}
   api("/api/skx/pin",{code:c}).then(function(){try{localStorage.setItem(SCODE,c)}catch(e){}toast("Код для персоналу збережено");info()}).catch(function(e){showErr("Код: "+((e&&e.message)||"помилка"))});return}
  if(t.closest("#skcodeoff")){if(await ask("Вимкнути доступ персоналу до сканера? Зайти зможе лише адміністратор із паролем.")){api("/api/skx/pin",{clear:true}).then(function(){try{localStorage.removeItem(SCODE)}catch(e){}toast("Доступ персоналу вимкнено");info()}).catch(function(e){showErr("Код: "+((e&&e.message)||"помилка"))})}return}
  if(t.closest("#pradd")){prAdd();return}
@@ -2159,7 +2159,7 @@ function mark(){var b=$("more"),pop=$("morepop");if(!b)return;var tb=typeof tab!
 if(typeof showTab==="function"){var _st=showTab;window.showTab=showTab=function(t){_st(t);mark()}}
 more();
 })();
-(function(){var V="v53",D="20.11.2026";
+(function(){var V="v54",D="20.11.2026";
 function ver(){var s=document.getElementById("set");if(s&&!s.querySelector("#ver")){var p=document.createElement("p");p.id="ver";p.className="sub";p.style.cssText="margin:0 0 12px;font-weight:600";p.textContent="Версія застосунку: "+V+" · оновлено "+D;s.insertBefore(p,s.firstChild)}
  var m=document.getElementById("mode");if(m&&!document.getElementById("verside")){var q=document.createElement("p");q.id="verside";q.className="sub";q.textContent="Версія "+V;m.parentNode.appendChild(q)}}
 if(typeof renderSet==="function"){var _r=renderSet;window.renderSet=renderSet=function(){_r.apply(this,arguments);ver()}}
