@@ -692,11 +692,12 @@ if(!old||old.a!==o.a||old.q!==o.q){DOCS[id]=o;ids.push(id);if(col)persist(id,o)}
 })});
 (j.close||[]).forEach(function(x){
 var cashM=(CFG.pm.filter(function(y){return/гот/i.test(y)})[0]||CFG.pm[0]);
-[["c",CASH,x.cash,cashM],["k",TERM,x.term,card]].forEach(function(p){
+var BQC=CFG.ci.filter(function(c){return /банкет/i.test(c)&&!/qr/i.test(c)})[0];if(!BQC&&((x.bqc||0)+(x.bqt||0))>0){BQC="Банкети";var bi=CFG.ci.indexOf("Інше");if(bi<0)CFG.ci.push(BQC);else CFG.ci.splice(bi,0,BQC);DOCS.cfg=CFG;persist("cfg",CFG)}
+[["c",CASH,x.cash-(x.bqc||0),cashM,"Каса дня"],["k",TERM,x.term-(x.bqt||0),card,"Каса дня"],["bc",BQC||"Банкети",x.bqc||0,cashM,"Банкет · каса дня (готівка)"],["bt",BQC||"Банкети",x.bqt||0,card,"Банкет · каса дня (термінал)"]].forEach(function(p){
 var id="rev-"+x.d+"-"+p[0],a=Math.round(p[2]||0)/100,old=DOCS[id];
 if(old&&!old.sv)return;
 if(a>0){
-var o={t:"i",d:x.d,a:a,c:p[1],v:"Каса дня",m:p[3],g:"виручка",n:"З сервера (каса дня)",s:0,sv:1,ts:(old&&old.ts)||Date.now()};
+var o={t:"i",d:x.d,a:a,c:p[1],v:p[4],m:p[3],g:"виручка",n:"З сервера (каса дня)",s:0,sv:1,ts:(old&&old.ts)||Date.now()};
 if(!old||old.a!==o.a){DOCS[id]=o;ids.push(id);if(col)persist(id,o)}
 }else if(old){delete DOCS[id];ids.push(id);if(col)persist(id,null)}
 })});
@@ -2147,7 +2148,7 @@ function mark(){var b=$("more"),pop=$("morepop");if(!b)return;var tb=typeof tab!
 if(typeof showTab==="function"){var _st=showTab;window.showTab=showTab=function(t){_st(t);mark()}}
 more();
 })();
-(function(){var V="v51",D="20.11.2026";
+(function(){var V="v52",D="20.11.2026";
 function ver(){var s=document.getElementById("set");if(s&&!s.querySelector("#ver")){var p=document.createElement("p");p.id="ver";p.className="sub";p.style.cssText="margin:0 0 12px;font-weight:600";p.textContent="Версія застосунку: "+V+" · оновлено "+D;s.insertBefore(p,s.firstChild)}
  var m=document.getElementById("mode");if(m&&!document.getElementById("verside")){var q=document.createElement("p");q.id="verside";q.className="sub";q.textContent="Версія "+V;m.parentNode.appendChild(q)}}
 if(typeof renderSet==="function"){var _r=renderSet;window.renderSet=renderSet=function(){_r.apply(this,arguments);ver()}}
