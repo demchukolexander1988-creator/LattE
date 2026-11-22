@@ -1297,7 +1297,7 @@ async function saApply(){
  var keys=Object.keys(need);if(!keys.length){toast("Нічого списувати");return}
  if(unk&&!await ask("Рядків без техкарти: "+unk+". Вони не будуть списані. Продовжити?"))return;
  var ds=d.replace(/-/g,""),ids=[],ts=new Date(d+"T23:00:00").getTime();
- moves().forEach(function(m){if(m.k==="sl"&&m.d===d&&!need[m.i]){DOCS[m.id]=Object.assign({},m,{del:1});delete DOCS[m.id].id;ids.push(m.id)}});
+ moves().forEach(function(m){if(m.k==="sl"&&m.d===d&&(!need[m.i]||m.id!=="sk:m:s"+ds+"-"+m.i)){DOCS[m.id]=Object.assign({},m,{del:1});delete DOCS[m.id].id;ids.push(m.id)}});/* v56: прибираємо й старі записи списання (після об’єднання товарів), щоб не було подвійного списання */
  keys.forEach(function(i){if(!itemById(i))return;var id="sk:m:s"+ds+"-"+i;DOCS[id]={k:"sl",i:i,q:Math.round(need[i]*10000)/10000,r:"продаж",w:"каса",ts:ts,d:d};ids.push(id)});
  saveMany(ids);var n=keys.length;SALE=null;render();toast("Списано позицій складу: "+n+" за "+dm(d))}
 async function saCancel(d){if(!await ask("Скасувати імпорт продажів за "+dm(d)+"?"))return;var ids=[];moves().forEach(function(m){if(m.k==="sl"&&m.d===d){DOCS[m.id]=Object.assign({},m,{del:1});delete DOCS[m.id].id;ids.push(m.id)}});saveMany(ids);render();toast("Імпорт скасовано")}
@@ -1437,7 +1437,7 @@ function actUnk(){var n=0;acts().slice(0,7).forEach(function(a){n+=actUnkList(a)
 function actApply(a){DOCS["sk:x:"+a.d]=Object.assign({},DOCS["sk:x:"+a.d]||{},a);
  var need={};actRows(a).forEach(function(r){if(luAdd(a.d,r.nm,r.q,need))return;if(r.tc){var t=DOCS["sk:t:"+r.tc];if(t)(t.ing||[]).forEach(function(x){need[x.i]=(need[x.i]||0)+x.q*r.q})}else if(r.it)need[r.it]=(need[r.it]||0)+r.q});
  var d=a.d,ds=d.replace(/-/g,""),ids=[],ts=new Date(d+"T23:00:00").getTime();
- moves().forEach(function(m){if(m.k==="sl"&&m.d===d&&!need[m.i]){DOCS[m.id]=Object.assign({},m,{del:1});delete DOCS[m.id].id;ids.push(m.id)}});
+ moves().forEach(function(m){if(m.k==="sl"&&m.d===d&&(!need[m.i]||m.id!=="sk:m:s"+ds+"-"+m.i)){DOCS[m.id]=Object.assign({},m,{del:1});delete DOCS[m.id].id;ids.push(m.id)}});/* v56: прибираємо й старі записи списання (після об’єднання товарів), щоб не було подвійного списання */
  var ni=0;Object.keys(need).forEach(function(i){if(!itemById(i))return;var id="sk:m:s"+ds+"-"+i;DOCS[id]={k:"sl",i:i,q:Math.round(need[i]*10000)/10000,r:"акт "+(a.no||""),w:"Checkbox",ts:ts,d:d};ids.push(id);ni++});
  var k="sk:x:"+d;DOCS[k]=Object.assign({},a,{ap:Date.now(),ni:ni});ids.push(k);saveMany(ids);return ni}
 async function pullActs(){if(!tok())return 0;var j=await api("/api/skx/sales?after="+kd(Date.now()-12*864e5)),n=0;
@@ -2159,7 +2159,7 @@ function mark(){var b=$("more"),pop=$("morepop");if(!b)return;var tb=typeof tab!
 if(typeof showTab==="function"){var _st=showTab;window.showTab=showTab=function(t){_st(t);mark()}}
 more();
 })();
-(function(){var V="v55",D="22.11.2026";
+(function(){var V="v56",D="22.11.2026";
 function ver(){var s=document.getElementById("set");if(s&&!s.querySelector("#ver")){var p=document.createElement("p");p.id="ver";p.className="sub";p.style.cssText="margin:0 0 12px;font-weight:600";p.textContent="Версія застосунку: "+V+" · оновлено "+D;s.insertBefore(p,s.firstChild)}
  var m=document.getElementById("mode");if(m&&!document.getElementById("verside")){var q=document.createElement("p");q.id="verside";q.className="sub";q.textContent="Версія "+V;m.parentNode.appendChild(q)}}
 if(typeof renderSet==="function"){var _r=renderSet;window.renderSet=renderSet=function(){_r.apply(this,arguments);ver()}}
