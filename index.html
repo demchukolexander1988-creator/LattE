@@ -1139,7 +1139,7 @@ function luMapRows(R){var out=[],unk=[],byI={};items().forEach(function(i){byI[n
   if(al0&&al0.t&&DOCS["sk:t:"+al0.t]&&!DOCS["sk:t:"+al0.t].del){var y0=DOCS["sk:t:"+al0.t].y||0;out.push({k:"t",id:al0.t,g:r.u==="порц"?(r.g||1)*(y0>0?y0:1)*f0:y0>0?(r.g>0?r.g*f0:y0*f0):f0});return}
   var it=byI[nrm(r.n)]||(al0&&al0.i&&itemById(al0.i))||null;
   var f=r.f>0?r.f:1;
-  if(it||r.u==="шт"){if(it)out.push({k:"i",id:it.id,g:(r.g||1)*f});else unk.push(r.n);return}
+  if(it||r.u==="шт"){if(it){var cq=(r.g||1)*f,cu=convU(cq,r.u||"шт",it.u);out.push({k:"i",id:it.id,g:cu.ok?cu.q:cq})}/* v55: грами ланчу → одиниці товару (кг/л) */else unk.push(r.n);return}
   var id=luMatchTc(r.n);if(!id){unk.push(r.n);return}var y=(DOCS["sk:t:"+id]||{}).y||0;
   out.push({k:"t",id:id,g:r.u==="порц"?(r.g||1)*(y>0?y:1)*f:y>0?(r.g>0?r.g*f:y*f):f})});return{c:out,unk:unk}}
 function luActTy(d,t){var a=DOCS["sk:x:"+d],lu=a&&a.lu&&a.lu.ty;if(!lu)return null;var k=Object.keys(lu).filter(function(x){return nrm(x)===nrm(t)})[0];return k?luMapRows(lu[k]):null}
@@ -2159,7 +2159,7 @@ function mark(){var b=$("more"),pop=$("morepop");if(!b)return;var tb=typeof tab!
 if(typeof showTab==="function"){var _st=showTab;window.showTab=showTab=function(t){_st(t);mark()}}
 more();
 })();
-(function(){var V="v54",D="20.11.2026";
+(function(){var V="v55",D="22.11.2026";
 function ver(){var s=document.getElementById("set");if(s&&!s.querySelector("#ver")){var p=document.createElement("p");p.id="ver";p.className="sub";p.style.cssText="margin:0 0 12px;font-weight:600";p.textContent="Версія застосунку: "+V+" · оновлено "+D;s.insertBefore(p,s.firstChild)}
  var m=document.getElementById("mode");if(m&&!document.getElementById("verside")){var q=document.createElement("p");q.id="verside";q.className="sub";q.textContent="Версія "+V;m.parentNode.appendChild(q)}}
 if(typeof renderSet==="function"){var _r=renderSet;window.renderSet=renderSet=function(){_r.apply(this,arguments);ver()}}
